@@ -8,20 +8,29 @@ import (
 
 	refdocker "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
 )
 
 type dockerCli struct {
 	*client.Client
 }
 
-func newDockerCli(ctxx context.Context) (*dockerCli, error) {
-	ctx = ctxx
+var containerConfig *container.Config = &container.Config{}
+var hostConfig *container.HostConfig = &container.HostConfig{NetworkMode: container.NetworkMode("none")}
+
+func newDockerCli() (*dockerCli, error) {
+	ctx = context.Background()
 	c, _ := client.NewClientWithOpts(client.FromEnv)
 	c.NegotiateAPIVersion(ctx)
 	_, err := c.Ping(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = image(c)
 	if err != nil {
 		return nil, err
 	}
@@ -30,43 +39,50 @@ func newDockerCli(ctxx context.Context) (*dockerCli, error) {
 
 }
 
-func (c *dockerCli) Create(ref, id string) {
+func image(c *client.Client) error {
 
 	canonicalRef, _ := refdocker.ParseDockerRef(ref)
-
 	cs, _ := c.ImageList(ctx, types.ImageListOptions{Filters: filters.NewArgs(filters.Arg("reference", canonicalRef.String()))})
 
 	if len(cs) == 0 {
 		out, err := c.ImagePull(ctx, ref, types.ImagePullOptions{})
-
 		if err != nil {
-
-			return
+			return err
 		}
 		defer out.Close()
 		io.Copy(io.Discard, out)
 	}
+	containerConfig.Image = ref
+	return nil
+}
 
-	containerConfig := &container.Config{
-		Image: ref,
+func (c *dockerCli) Volume(volume string) params {
 
-		Cmd: strings.Fields("ls /dev"),
+	hostConfig.Binds = append(hostConfig.Binds, volume)
+
+	return c
+}
+
+func (c *dockerCli) Entrypoint(command ...string) State {
+	containerConfig.Hostname = name
+	if len(command) == 1 {
+		containerConfig.Entrypoint = strings.Fields(command[0])
 	}
-
-	hostConfig := &container.HostConfig{Binds: []string{"/boot:/boot:ro"},
-		NetworkMode: container.NetworkMode("default"),
-	}
-
-	resp, err := c.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, id)
+	resp, err := c.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, name)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return State{Status: err.Error()}
 	}
 
-	if err := c.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	err = c.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	if err != nil {
 		fmt.Println(err)
-		return
+		return State{Status: err.Error()}
 	}
-	fmt.Println(resp.ID)
+	container, err := c.ContainerInspect(ctx, resp.ID)
+	if err != nil {
+		return State{Status: err.Error(), Running: container.State.Running}
+	}
+	return State{Running: container.State.Running, Pid: container.State.Pid}
 
 }

@@ -5,21 +5,58 @@ import (
 	"fmt"
 )
 
-var ctx context.Context
+var (
+	ctx  context.Context
+	name string
+	ref  string
+)
 
 type Client interface {
 	Create(ref, id string)
+	Image(url, name string) params
 }
 
-func NewClient(ctx context.Context) (Client, error) {
+type State struct {
+	Status  string
+	Running bool
+	Pid     int
+}
 
-	if c, err := newContainedCli(ctx); err == nil {
-		return c, nil
-	}
+type params interface {
+	Volume(volume string) params
+	Entrypoint(command ...string) State // start container witch command
+}
 
-	if c, err := newDockerCli(ctx); err == nil {
+func newClient() (params, error) {
+
+	/*
+		if c, err := newContainedCli(ctx); err == nil {
+			return c, nil
+		}
+	*/
+	if c, err := newDockerCli(); err == nil {
 		return c, nil
 	}
 
 	return nil, fmt.Errorf("no available client")
+}
+
+// option ref image url
+//
+// option name container id and hostname
+func Image(image string, ContainerName ...string) params {
+
+	if len(ContainerName) != 1 {
+		ContainerName = []string{"haha"}
+	}
+
+	name = ContainerName[0]
+	ref = image
+
+	cli, err := newClient()
+	if err != nil {
+		return nil
+	}
+
+	return cli
 }
