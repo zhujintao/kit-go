@@ -24,6 +24,9 @@ import (
 var repo string
 var taskDir string
 
+func SetImageRepo(root string) image.Repo {
+	return image.InitRepository(root)
+}
 func InitRunc(root image.Repo, shuffix ...string) {
 	repo = root.Path
 	if len(shuffix) == 1 {
