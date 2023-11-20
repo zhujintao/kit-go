@@ -17,14 +17,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/zhujintao/kit-go/image"
 	"golang.org/x/sys/unix"
 )
 
 var repo string
 var taskDir string
 
-func InitRunc(root string, shuffix ...string) {
-	repo = root
+func InitRunc(root image.Repo, shuffix ...string) {
+	repo = root.Path
 	if len(shuffix) == 1 {
 		stateDir, err := securejoin.SecureJoin(repo, shuffix[0])
 		if err != nil {
@@ -32,7 +33,7 @@ func InitRunc(root string, shuffix ...string) {
 		}
 		repo = stateDir
 	}
-	taskDir = filepath.Join(root, "tasks")
+	taskDir = filepath.Join(root.Path, "tasks")
 }
 func SetTaskDir(root string) {
 	dir, err := securejoin.SecureJoin(root, "tasks")

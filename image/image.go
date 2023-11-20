@@ -84,7 +84,11 @@ func newSnapshotStore(root string) snapshots.Snapshotter {
 
 }
 
-func InitRepository(root string) string {
+type Repo struct {
+	Path string
+}
+
+func InitRepository(root string) Repo {
 	sn := newSnapshotStore(root)
 	cs := newContentStore(root)
 	is := newImageStore(root, cs)
@@ -99,7 +103,7 @@ func InitRepository(root string) string {
 			PlatformMatcher: platforms.Default()},
 		resolverOpt: docker.ResolverOptions{},
 	}
-	return root
+	return Repo{Path: root}
 
 }
 func getImageName(ref string) string {
