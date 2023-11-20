@@ -95,8 +95,8 @@ func (t *task) Run(rm ...bool) {
 	if len(rm) != 1 {
 		rm = []bool{false}
 	}
-	t.container.Run(t.process)
-
+	err := t.container.Run(t.process)
+	fmt.Println("container.Run", err)
 	if rm[0] {
 		t.process.Wait()
 		t.container.Destroy()
@@ -132,7 +132,10 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 	s.Spec.Annotations = map[string]string{}
 
 	for _, o := range opts {
-		o(s)
+		err := o(s)
+		if err != nil {
+			fmt.Println("opts", err)
+		}
 	}
 	s.Spec.Process.Terminal = true
 	config, err := specconv.CreateLibcontainerConfig(s)
@@ -152,16 +155,15 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 
 	umountpath, err := exec.LookPath("umount")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("umountpath", err)
 	}
-	fmt.Println(umountpath)
+
 	rootfs := filepath.Join(taskDir, id, "rootfs")
 	postStop := configs.NewCommandHook(configs.Command{
 		Path: umountpath,
 		Env:  s.Spec.Process.Env,
 		Args: []string{umountpath, rootfs},
 	})
-	fmt.Println(postStop.Command)
 
 	config.Hooks = configs.Hooks{configs.Poststop: configs.HookList{postStop}}
 
@@ -380,7 +382,7 @@ func getContainers() ([]State, error) {
 		}
 		container, err := libcontainer.Load(repo, item.Name())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "load container %s: %v\n", item.Name(), err)
+			//fmt.Fprintf(os.Stderr, "load container %s: %v\n", item.Name(), err)
 			continue
 		}
 		status, err := container.Status()
