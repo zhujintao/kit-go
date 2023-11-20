@@ -420,7 +420,9 @@ func WithImageConfig(ref string) oci.SpecOpts {
 		cmd := config.Cmd
 
 		s.Process.Env = config.Env
+
 		s.Process.Args = append(config.Entrypoint, cmd...)
+
 		cwd := config.WorkingDir
 		if cwd == "" {
 			cwd = "/"

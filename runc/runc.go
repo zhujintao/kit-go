@@ -129,6 +129,7 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 	}
 	s.Spec = defaultSpec()
 	s.Spec.Linux.Seccomp = nil
+	s.Spec.Annotations = map[string]string{}
 
 	for _, o := range opts {
 		o(s)
@@ -302,10 +303,22 @@ func Exec(id string, cmd ...string) {
 	}
 }
 
-func List() {
+func List(quiet ...bool) {
+	if len(quiet) != 1 {
+		quiet = []bool{false}
+	}
 
 	s, err := getContainers()
 	if err != nil {
+		return
+	}
+
+	if quiet[0] {
+		w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
+		for _, item := range s {
+			fmt.Fprintf(w, "%s\n", item.id)
+		}
+		w.Flush()
 		return
 	}
 
@@ -396,5 +409,6 @@ func getContainers() ([]State, error) {
 		})
 
 	}
+
 	return s, nil
 }

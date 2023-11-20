@@ -27,8 +27,11 @@ func WithOciSpec(opts ...oci.SpecOpts) NewContainerOpts {
 			}
 
 			if err := o(nil, nil, nil, c.Spec); err != nil {
+
 				return err
 			}
+
+			c.Spec.Annotations["command"] = strings.Join(c.Spec.Process.Args, " ")
 		}
 		return nil
 	}
@@ -109,7 +112,9 @@ func WithImage(ref string) NewContainerOpts {
 		if err != nil {
 			return err
 		}
-		c.Spec.Annotations = map[string]string{"image": ref, "command": strings.Join(c.Spec.Process.Args, " ")}
+		c.Spec.Annotations["image"] = ref
+
+		c.Spec.Annotations["command"] = strings.Join(c.Spec.Process.Args, " ")
 
 		return nil
 	}
