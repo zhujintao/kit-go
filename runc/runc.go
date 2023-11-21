@@ -137,6 +137,7 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 			fmt.Println("opts", err)
 		}
 	}
+
 	s.Spec.Process.Terminal = true
 	config, err := specconv.CreateLibcontainerConfig(s)
 	if err != nil {
@@ -144,7 +145,7 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 		return &task{}
 	}
 
-	//fmt.Printf("%+v\n", s.Spec.Process)
+	fmt.Printf("%+v\n", s.Spec.Process)
 	/*
 		postStop := configs.NewFunctionHook(func(s *specs.State) error {
 			err := mount.UnmountAll(filepath.Join(taskDir, id, "rootfs"), 0)

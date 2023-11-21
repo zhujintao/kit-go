@@ -55,6 +55,7 @@ func defaultSpec() *specs.Spec {
 	if err != nil {
 		return nil
 	}
+	tmpl.Config.Process.Args = []string{""}
 	return tmpl.Config
 }
 
@@ -113,7 +114,6 @@ func WithImage(ref string) NewContainerOpts {
 			return err
 		}
 		c.Spec.Annotations["image"] = ref
-
 		c.Spec.Annotations["command"] = strings.Join(c.Spec.Process.Args, " ")
 
 		return nil
@@ -137,17 +137,45 @@ func (v *volume) Do() []specs.Mount {
 	return v.ms
 }
 
-func SetVolume(source, destination string) *volume {
+func WithVolume(source, destination string, options ...string) NewContainerOpts {
+	if len(options) != 1 {
+		options = []string{"bind"}
+	}
+	return func(c *specconv.CreateOpts) error {
 
-	return &volume{
-		ms: []specs.Mount{
-			specs.Mount{
-				Type:        "bind",
-				Options:     []string{"bind"},
-				Source:      source,
-				Destination: destination,
-			},
-		},
+		m := specs.Mount{
+			Type:        "bind",
+			Options:     options,
+			Source:      source,
+			Destination: destination,
+		}
+
+		c.Spec.Mounts = append(c.Spec.Mounts, m)
+		return nil
 	}
 
+}
+
+func WithEnv(env string) NewContainerOpts {
+	return func(c *specconv.CreateOpts) error {
+
+		c.Spec.Process.Env = append(c.Spec.Process.Env, strings.Fields(env)...)
+		return nil
+
+	}
+
+}
+
+func WithProcessArgs(cmd string, args ...string) NewContainerOpts {
+	return func(c *specconv.CreateOpts) error {
+
+		if cmd != "" {
+			c.Spec.Process.Args = []string{cmd}
+		}
+
+		if len(args) != 0 {
+			c.Spec.Process.Args = append(c.Spec.Process.Args, args...)
+		}
+		return nil
+	}
 }

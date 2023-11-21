@@ -416,12 +416,13 @@ func WithImageConfig(ref string) oci.SpecOpts {
 		default:
 			return fmt.Errorf("unknown image config media type %s", ic.MediaType)
 		}
-
-		cmd := config.Cmd
-
 		s.Process.Env = config.Env
 
-		s.Process.Args = append(config.Entrypoint, cmd...)
+		cmd := config.Cmd
+		if s.Process.Args[0] == "" {
+			cmd = append(cmd, s.Process.Args[1:]...)
+			s.Process.Args = append(config.Entrypoint, cmd...)
+		}
 
 		cwd := config.WorkingDir
 		if cwd == "" {
