@@ -145,8 +145,11 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 			fmt.Println("opts", err)
 		}
 	}
+	if len(s.Spec.Process.Args) == 0 {
+		fmt.Println("Error No command specified.")
+		return &task{}
+	}
 
-	s.Spec.Process.Terminal = true
 	config, err := specconv.CreateLibcontainerConfig(s)
 	if err != nil {
 		fmt.Println("specconv.CreateLibcontainerConfig", err)
