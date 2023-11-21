@@ -342,12 +342,10 @@ func Stop(id string) {
 		}
 	}
 
-	sig, err := signal.ParseSignal("SIGTERM")
+	sig, err := signal.ParseSignal(sigstr)
 	if err != nil {
 		sigstr = "SIGTERM"
 	}
-
-	fmt.Println(sigstr, sig)
 
 	err = container.Signal(sig)
 	if err != nil {
