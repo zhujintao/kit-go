@@ -306,28 +306,36 @@ func Delete(id string, force ...bool) {
 		}
 
 	case libcontainer.Created:
-		killContainer(container)
+		killContainer(container, unix.SIGKILL, true)
 	default:
 		if force[0] {
-			killContainer(container)
+			killContainer(container, unix.SIGKILL, true)
 		}
 		fmt.Printf("cannot delete container %s that is not stopped: %s\n", id, status)
 	}
 
 }
-func killContainer(container *libcontainer.Container) error {
-	_ = container.Signal(unix.SIGKILL)
+func killContainer(container *libcontainer.Container, sig syscall.Signal, destrosy ...bool) error {
+	if len(destrosy) != 1 {
+		destrosy = []bool{false}
+	}
+	_ = container.Signal(sig)
 	for i := 0; i < 100; i++ {
 		time.Sleep(100 * time.Millisecond)
 		if err := container.Signal(unix.Signal(0)); err != nil {
-			container.Destroy()
+			if destrosy[0] {
+				container.Destroy()
+			}
 			return nil
 		}
 	}
 	return errors.New("container init still running")
 }
 
-func Stop(id string) {
+func Stop(id string, destrosy ...bool) {
+	if len(destrosy) != 1 {
+		destrosy = []bool{false}
+	}
 	container, err := libcontainer.Load(repo, id)
 	if err != nil {
 		fmt.Println("container.Load", err)
@@ -346,8 +354,7 @@ func Stop(id string) {
 	if err != nil {
 		sigstr = "SIGTERM"
 	}
-
-	err = container.Signal(sig)
+	err = killContainer(container, sig, destrosy[0])
 	if err != nil {
 		fmt.Println("stop", err)
 	}
