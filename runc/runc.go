@@ -1,6 +1,7 @@
 package runc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,11 +13,13 @@ import (
 	"time"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/moby/sys/signal"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/zhujintao/kit-go/image"
 	"golang.org/x/sys/unix"
 )
@@ -54,8 +57,9 @@ type action interface {
 }
 
 type task struct {
-	container *libcontainer.Container
-	process   *libcontainer.Process
+	container   *libcontainer.Container
+	process     *libcontainer.Process
+	specProcess *specs.Process
 }
 
 func (t *task) Rm() {
@@ -82,7 +86,7 @@ func (t *task) Create() {
 	}
 	err := t.container.Start(t.process)
 	if err != nil {
-		fmt.Println("create", err)
+		fmt.Println("container.Start", err)
 		return
 	}
 
@@ -96,7 +100,12 @@ func (t *task) Run(rm ...bool) {
 		rm = []bool{false}
 	}
 	err := t.container.Run(t.process)
-	fmt.Println("container.Run", err)
+	if err != nil {
+		fmt.Println("container.Run", err)
+	}
+
+	savePrcess(t.container.ID(), t.specProcess)
+
 	if rm[0] {
 		t.process.Wait()
 		t.container.Destroy()
@@ -129,7 +138,6 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 	}
 	s.Spec = defaultSpec()
 	s.Spec.Linux.Seccomp = nil
-	s.Spec.Annotations = map[string]string{}
 
 	for _, o := range opts {
 		err := o(s)
@@ -145,7 +153,7 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 		return &task{}
 	}
 
-	fmt.Printf("%+v\n", s.Spec.Process)
+	//fmt.Printf("%+v\n", s.Spec.Process)
 	/*
 		postStop := configs.NewFunctionHook(func(s *specs.State) error {
 			err := mount.UnmountAll(filepath.Join(taskDir, id, "rootfs"), 0)
@@ -178,11 +186,58 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 		fmt.Println("newProcess", err)
 		return &task{}
 	}
+
 	return &task{
-		container: container,
-		process:   process,
+		container:   container,
+		process:     process,
+		specProcess: s.Spec.Process,
 	}
 
+}
+func savePrcess(id string, p *specs.Process) error {
+	tmpFile, err := os.CreateTemp(filepath.Join(repo, id), "process-")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tmpFile.Close()
+			os.Remove(tmpFile.Name())
+		}
+	}()
+
+	err = utils.WriteJSON(tmpFile, p)
+	if err != nil {
+		return err
+	}
+	err = tmpFile.Close()
+	if err != nil {
+		return err
+	}
+	processFilePath := filepath.Join(repo, id, "process.json")
+	return os.Rename(tmpFile.Name(), processFilePath)
+
+}
+
+func loadPrcess(id string) (*specs.Process, error) {
+
+	processFilePath, err := securejoin.SecureJoin(filepath.Join(repo, id), "process.json")
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(processFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, libcontainer.ErrNotExist
+		}
+		return nil, err
+	}
+	defer f.Close()
+	var p *specs.Process
+	if err := json.NewDecoder(f).Decode(&p); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func Start(id string) {
@@ -204,7 +259,21 @@ func Start(id string) {
 		}
 		return
 	case libcontainer.Stopped:
-		fmt.Println("cannot start a container that has stopped")
+
+		p, err := loadPrcess(id)
+		if err != nil {
+			fmt.Println("cannot start a container that has stopped", err)
+			return
+		}
+		process, err := newProcess(*p)
+		if err != nil {
+			fmt.Println("newProcess", err)
+		}
+		err = container.Run(process)
+		if err != nil {
+			fmt.Println("container.Run", err)
+		}
+		//fmt.Println("cannot start a container that has stopped",)
 		return
 	case libcontainer.Running:
 		fmt.Println("cannot start an already running container")
@@ -258,13 +327,32 @@ func killContainer(container *libcontainer.Container) error {
 	return errors.New("container init still running")
 }
 
-func Kill(id string, sig os.Signal) {
+func Stop(id string) {
 	container, err := libcontainer.Load(repo, id)
 	if err != nil {
 		fmt.Println("container.Load", err)
 		return
 	}
-	container.Signal(sig)
+	sigstr := "SIGTERM"
+	state, err := container.State()
+	if err == nil {
+		_, label := utils.Annotations(state.Config.Labels)
+		if label["stop-signal"] != "" {
+			sigstr = "SIGTERM"
+		}
+	}
+
+	sig, err := signal.ParseSignal("SIGTERM")
+	if err != nil {
+		sigstr = "SIGTERM"
+	}
+
+	fmt.Println(sigstr, sig)
+
+	err = container.Signal(sig)
+	if err != nil {
+		fmt.Println("stop", err)
+	}
 
 }
 

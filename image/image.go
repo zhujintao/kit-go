@@ -429,7 +429,7 @@ func WithImageConfig(ref string) oci.SpecOpts {
 			cwd = "/"
 		}
 		s.Process.Cwd = cwd
-
+		s.Annotations["stop-signal"] = config.StopSignal
 		return nil
 
 	}

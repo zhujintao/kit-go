@@ -55,7 +55,9 @@ func defaultSpec() *specs.Spec {
 	if err != nil {
 		return nil
 	}
-	tmpl.Config.Process.Args = []string{""}
+	tmpl.SetProcessArgs([]string{""})
+	tmpl.ClearAnnotations()
+
 	return tmpl.Config
 }
 
@@ -118,23 +120,6 @@ func WithImage(ref string) NewContainerOpts {
 
 		return nil
 	}
-}
-
-type volume struct {
-	ms []specs.Mount
-}
-
-func (v *volume) SetVolume(source, destination string) *volume {
-	v.ms = append(v.ms, specs.Mount{
-		Type:        "bind",
-		Options:     []string{"bind"},
-		Source:      source,
-		Destination: destination,
-	})
-	return v
-}
-func (v *volume) Do() []specs.Mount {
-	return v.ms
 }
 
 func WithVolume(source, destination string, options ...string) NewContainerOpts {
