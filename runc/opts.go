@@ -49,7 +49,7 @@ func skipFunc(s string, substrs ...string) bool {
 
 }
 
-func defaultSpec() *specs.Spec {
+func defaultSpec(id string) *specs.Spec {
 
 	tmpl, err := generate.New(runtime.GOOS)
 	if err != nil {
@@ -57,6 +57,7 @@ func defaultSpec() *specs.Spec {
 	}
 	tmpl.SetProcessArgs([]string{""})
 	tmpl.ClearAnnotations()
+	tmpl.SetHostname(id)
 
 	return tmpl.Config
 }

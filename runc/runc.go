@@ -136,7 +136,7 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 	s := &specconv.CreateOpts{
 		CgroupName: id,
 	}
-	s.Spec = defaultSpec()
+	s.Spec = defaultSpec(id)
 	s.Spec.Linux.Seccomp = nil
 
 	for _, o := range opts {
@@ -383,10 +383,15 @@ func Exec(id string, cmd ...string) {
 		return
 	}
 
-	spec := defaultSpec()
-	spec.Process.Terminal = false
-	spec.Process.Args = cmd
-	process, err := newProcess(*spec.Process)
+	p, err := loadPrcess(container.ID())
+	if err != nil {
+		fmt.Println("loadPrcess", err)
+		return
+	}
+	p.Terminal = false
+	p.Args = cmd
+
+	process, err := newProcess(*p)
 	if err != nil {
 		fmt.Println(err)
 		return
