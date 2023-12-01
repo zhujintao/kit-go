@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/containerd/containerd/cio"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/moby/sys/signal"
 	"github.com/moby/sys/user"
@@ -146,7 +147,7 @@ func NewContainer(id string, opts ...NewContainerOpts) action {
 		}
 	}
 	if len(s.Spec.Process.Args) == 0 {
-		fmt.Println("Error No command specified.")
+		fmt.Println("create failed: args must not be empty")
 		return &task{}
 	}
 
@@ -361,6 +362,50 @@ func Stop(id string, destrosy ...bool) {
 	if err != nil {
 		fmt.Println("stop", err)
 	}
+
+}
+
+func Attach(id string) {
+	container, err := libcontainer.Load(repo, id)
+	if err != nil {
+		fmt.Println("container.Load", err)
+		return
+	}
+	status, err := container.Status()
+	if err != nil {
+		fmt.Println("container.Status()", err)
+		return
+	}
+
+	if status != libcontainer.Running {
+		return
+	}
+
+	state, err := container.State()
+	if err != nil {
+		return
+	}
+
+	fifos := cio.NewFIFOSet(cio.Config{
+		Stdin:  fmt.Sprintf("/proc/%d/fd/0", state.InitProcessPid),
+		Stdout: fmt.Sprintf("/proc/%d/fd/1", state.InitProcessPid),
+		Stderr: fmt.Sprintf("/proc/%d/fd/2", state.InitProcessPid),
+	}, nil)
+
+	ioAttach := cio.NewAttach(cio.WithStdio)
+	io, err := ioAttach(fifos)
+	if err != nil {
+		fmt.Println("ioAttach", err)
+		return
+	}
+
+	io.Wait()
+
+	defer func() {
+		io.Cancel()
+		io.Wait()
+		io.Close()
+	}()
 
 }
 
