@@ -11,8 +11,16 @@ import (
 
 type createOpts func(c *specconv.CreateOpts) error
 
+func OptWithSetId(id string) createOpts {
+	return func(c *specconv.CreateOpts) error {
+
+		c.CgroupName = id
+		return nil
+	}
+}
+
 // use oci opts  "github.com/containerd/containerd/oci"
-func WithOciSpec(opts ...oci.SpecOpts) createOpts {
+func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		for _, o := range opts {

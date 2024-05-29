@@ -7,14 +7,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
-func OptWithSetId(id string) createOpts {
-	return func(c *specconv.CreateOpts) error {
-
-		c.CgroupName = id
-		return nil
-	}
-}
-
 func Container(id string, opts ...createOpts) *libcontainer.Container {
 
 	c, err := libcontainer.Load("", id)

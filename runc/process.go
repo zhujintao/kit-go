@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func NewProcess(p specs.Process) (*libcontainer.Process, error) {
+func newProcess(p specs.Process) (*libcontainer.Process, error) {
 
 	lp := &libcontainer.Process{
 		Args: p.Args,
