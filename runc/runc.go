@@ -7,7 +7,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
-func SetId(id string) createOpts {
+func OptWithSetId(id string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		c.CgroupName = id
