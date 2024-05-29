@@ -9,10 +9,10 @@ import (
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
-type NewContainerOpts func(c *specconv.CreateOpts) error
+type createOpts func(c *specconv.CreateOpts) error
 
 // use oci opts  "github.com/containerd/containerd/oci"
-func WithOciSpec(opts ...oci.SpecOpts) NewContainerOpts {
+func WithOciSpec(opts ...oci.SpecOpts) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		for _, o := range opts {

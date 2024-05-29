@@ -7,7 +7,7 @@ import (
 	"github.com/opencontainers/runtime-tools/generate"
 )
 
-func DefaultSpec(id, rootfs string) *specs.Spec {
+func defaultSpec(id string) *specs.Spec {
 
 	tmpl, err := generate.New(runtime.GOOS)
 	if err != nil {
@@ -16,7 +16,7 @@ func DefaultSpec(id, rootfs string) *specs.Spec {
 	tmpl.SetProcessArgs([]string{""})
 	tmpl.ClearAnnotations()
 	tmpl.SetHostname(id)
-	tmpl.SetRootPath(rootfs)
+
 	tmpl.SetProcessTerminal(true)
 	tmpl.Config.Linux.Seccomp = nil
 
