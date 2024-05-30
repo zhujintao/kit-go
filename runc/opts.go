@@ -43,6 +43,14 @@ func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
 
 }
 
+func OptWithRepo(root string) createOpts {
+	return func(c *specconv.CreateOpts) error {
+		repo = root
+		return nil
+	}
+
+}
+
 func skipFunc(s string, substrs ...string) bool {
 
 	for _, substr := range substrs {

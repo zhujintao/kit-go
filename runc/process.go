@@ -2,6 +2,7 @@ package runc
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/opencontainers/runc/libcontainer"
@@ -13,14 +14,17 @@ import (
 func newProcess(p specs.Process) (*libcontainer.Process, error) {
 
 	lp := &libcontainer.Process{
-		Args: p.Args,
-		Env:  p.Env,
-		// TODO: fix libcontainer's API to better support uid/gid in a typesafe way.
+		Args:            p.Args,
+		Env:             p.Env,
 		User:            fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
 		Cwd:             p.Cwd,
 		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
 		AppArmorProfile: p.ApparmorProfile,
+		Init:            true,
+		Stdin:           os.Stdin,
+		Stdout:          os.Stdout,
+		Stderr:          os.Stderr,
 	}
 	if p.ConsoleSize != nil {
 		lp.ConsoleWidth = uint16(p.ConsoleSize.Width)
