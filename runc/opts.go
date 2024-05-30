@@ -43,9 +43,17 @@ func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
 
 }
 
-func OptWithRepo(root string) createOpts {
+func OptWithRepoPath(root string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 		repo = root
+		return nil
+	}
+
+}
+
+func OptWithRootPath(root string) createOpts {
+	return func(c *specconv.CreateOpts) error {
+		c.Spec.Root.Path = root
 		return nil
 	}
 
