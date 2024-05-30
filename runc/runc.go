@@ -16,8 +16,9 @@ type container struct {
 	*libcontainer.Container
 }
 
-type OptGroup []createOpts
-
+func NewGroup() []createOpts {
+	return []createOpts{}
+}
 func Container(id string, opts ...createOpts) *container {
 
 	s := &specconv.CreateOpts{
