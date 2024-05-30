@@ -11,14 +11,6 @@ import (
 
 type createOpts func(c *specconv.CreateOpts) error
 
-func OptWithSetId(id string) createOpts {
-	return func(c *specconv.CreateOpts) error {
-
-		c.CgroupName = id
-		return nil
-	}
-}
-
 // use oci opts  "github.com/containerd/containerd/oci"
 func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
 	return func(c *specconv.CreateOpts) error {
@@ -43,6 +35,17 @@ func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
 
 }
 
+func skipFunc(s string, substrs ...string) bool {
+
+	for _, substr := range substrs {
+		if strings.Contains(s, substr) {
+			return true
+		}
+	}
+	return false
+
+}
+
 // default /var/lib/libcontainer
 func SetRepoPath(root string) createOpts {
 	return func(c *specconv.CreateOpts) error {
@@ -61,13 +64,29 @@ func SetRootPath(path string) createOpts {
 
 }
 
-func skipFunc(s string, substrs ...string) bool {
+func SetEnv(env string) createOpts {
+	return func(c *specconv.CreateOpts) error {
 
-	for _, substr := range substrs {
-		if strings.Contains(s, substr) {
-			return true
-		}
+		c.Spec.Process.Env = append(c.Spec.Process.Env, strings.Fields(env)...)
+		return nil
+
 	}
-	return false
 
+}
+
+// setArgs replaces the cmd and args
+//
+// cmd is "" original cmd unchanged
+func setArgs(cmd string, args ...string) createOpts {
+	return func(c *specconv.CreateOpts) error {
+
+		if cmd != "" {
+			c.Spec.Process.Args = []string{cmd}
+		}
+
+		if len(args) != 0 {
+			c.Spec.Process.Args = append(c.Spec.Process.Args, args...)
+		}
+		return nil
+	}
 }
