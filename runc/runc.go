@@ -16,15 +16,14 @@ type container struct {
 	*libcontainer.Container
 }
 
+type OptGroup []createOpts
+
 func Container(id string, opts ...createOpts) *container {
 
 	s := &specconv.CreateOpts{
 		CgroupName: id,
 	}
-
 	s.Spec = defaultSpec(id)
-
-	s.Spec.Linux.Seccomp = nil
 
 	for _, o := range opts {
 		err := o(s)

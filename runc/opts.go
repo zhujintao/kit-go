@@ -43,7 +43,8 @@ func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
 
 }
 
-func OptWithRepoPath(root string) createOpts {
+// default /var/lib/libcontainer
+func SetRepoPath(root string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 		repo = root
 		return nil
@@ -51,9 +52,10 @@ func OptWithRepoPath(root string) createOpts {
 
 }
 
-func OptWithRootPath(root string) createOpts {
+// path is the absolute path to the container's root filesystem.
+func SetRootPath(path string) createOpts {
 	return func(c *specconv.CreateOpts) error {
-		c.Spec.Root.Path = root
+		c.Spec.Root.Path = path
 		return nil
 	}
 
