@@ -2,6 +2,7 @@ package runc
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -15,8 +16,13 @@ type container struct {
 }
 
 func (c container) AsRun() {
-	c.Run(c.process)
+
+	err := c.Run(c.process)
+	if err != nil {
+		c.Destroy()
+	}
 	c.process.Wait()
+	c.Destroy()
 }
 
 func Container(id string, opts ...createOpts) *container {
@@ -45,6 +51,11 @@ func Container(id string, opts ...createOpts) *container {
 		if err != nil {
 			fmt.Println("opts", err)
 		}
+	}
+
+	_, err = os.Stat(s.Spec.Root.Path)
+	if os.IsExist(err) {
+		panic(err)
 	}
 
 	config, err := specconv.CreateLibcontainerConfig(s)
