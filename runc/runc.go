@@ -16,20 +16,13 @@ type container struct {
 	*libcontainer.Container
 }
 
-func (c container) AsRun() {
-
-	err := c.Run(c.process)
-	if err != nil {
-		c.Destroy()
-	}
-	c.process.Wait()
-	c.Destroy()
-}
-
 func Container(id string, opts ...createOpts) *container {
 
+	s := &specconv.CreateOpts{
+		CgroupName: id,
+	}
 	for _, o := range opts {
-		err := o(&specconv.CreateOpts{})
+		err := o(s)
 		if err != nil {
 			fmt.Println("opts", err)
 		}
@@ -40,9 +33,7 @@ func Container(id string, opts ...createOpts) *container {
 
 		return &container{Container: c}
 	}
-	s := &specconv.CreateOpts{
-		CgroupName: id,
-	}
+
 	s.Spec = defaultSpec(id)
 
 	s.Spec.Linux.Seccomp = nil
@@ -77,4 +68,14 @@ func Container(id string, opts ...createOpts) *container {
 		panic(err)
 	}
 	return &container{Container: c, process: p}
+}
+
+func (c container) AsRun() {
+
+	err := c.Run(c.process)
+	if err != nil {
+		c.Destroy()
+	}
+	c.process.Wait()
+	c.Destroy()
 }
