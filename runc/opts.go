@@ -12,7 +12,7 @@ import (
 type createOpts func(c *specconv.CreateOpts) error
 
 // use oci opts  "github.com/containerd/containerd/oci"
-func OptWithOciSpec(opts ...oci.SpecOpts) createOpts {
+func SetWithOciSpec(opts ...oci.SpecOpts) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		for _, o := range opts {
@@ -77,7 +77,7 @@ func SetEnv(env string) createOpts {
 // setArgs replaces the cmd and args
 //
 // cmd is "" original cmd unchanged
-func setArgs(cmd string, args ...string) createOpts {
+func SetArgs(cmd string, args ...string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		if cmd != "" {
