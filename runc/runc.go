@@ -55,6 +55,7 @@ func Container(id string, opts ...createOpts) *container {
 
 	_, err = os.Stat(s.Spec.Root.Path)
 	if os.IsExist(err) {
+		fmt.Println("-----------------", err)
 		panic(err)
 	}
 
