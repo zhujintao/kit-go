@@ -21,18 +21,6 @@ func Container(id string, opts ...createOpts) *container {
 	s := &specconv.CreateOpts{
 		CgroupName: id,
 	}
-	for _, o := range opts {
-		err := o(s)
-		if err != nil {
-			fmt.Println("opts", err)
-		}
-	}
-
-	c, err := libcontainer.Load(repo, id)
-	if err == nil {
-
-		return &container{Container: c}
-	}
 
 	s.Spec = defaultSpec(id)
 
@@ -43,6 +31,11 @@ func Container(id string, opts ...createOpts) *container {
 		if err != nil {
 			fmt.Println("opts", err)
 		}
+	}
+
+	c, err := libcontainer.Load(repo, id)
+	if err == nil {
+		return &container{Container: c}
 	}
 
 	_, err = os.Stat(s.Spec.Root.Path)
