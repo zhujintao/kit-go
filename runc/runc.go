@@ -2,7 +2,7 @@ package runc
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/opencontainers/runc/libcontainer"
@@ -56,8 +56,9 @@ func Container(id string, opts ...createOpts) *container {
 
 	_, err = os.Stat(s.Spec.Root.Path)
 	if os.IsNotExist(err) {
+		slog.Error("rootfs dir not exist, use OptWithRootPath")
+		os.Exit(1)
 
-		log.Fatalln("use OptWithRootPath")
 	}
 
 	config, err := specconv.CreateLibcontainerConfig(s)
