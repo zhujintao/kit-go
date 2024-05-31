@@ -62,9 +62,9 @@ func Container(id string, opts ...createOpts) *container {
 	return &container{Container: c, process: p}
 }
 
-func (c container) AsRun() {
+func (c container) Run() {
 
-	err := c.Run(c.process)
+	err := c.Container.Run(c.process)
 	if err != nil {
 		c.Destroy()
 	}
