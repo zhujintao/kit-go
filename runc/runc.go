@@ -71,3 +71,8 @@ func (c container) Run() {
 	c.process.Wait()
 	c.Destroy()
 }
+
+func (c container) Restore() {
+	err := c.Container.Restore(c.process, nil)
+	fmt.Println(err)
+}

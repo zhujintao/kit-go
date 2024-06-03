@@ -1,11 +1,22 @@
 package runc
 
 import (
+	"archive/tar"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/archive"
+	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/oci"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
@@ -89,4 +100,87 @@ func SetArgs(cmd string, args ...string) createOpts {
 		}
 		return nil
 	}
+}
+
+// archive image path
+func SetImage(image string) createOpts {
+	return func(c *specconv.CreateOpts) error {
+
+		reader, err := os.Open(image)
+		if err != nil {
+			return err
+		}
+
+		var (
+			tr        = tar.NewReader(reader)
+			ociLayout ocispec.ImageLayout
+			mfsts     []struct {
+				Config   string
+				RepoTags []string
+				Layers   []string
+			}
+		)
+
+		for {
+			hdr, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil
+			}
+			if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+				if hdr.Typeflag != tar.TypeDir {
+					fmt.Println("file", hdr.Name, "file type ignored")
+				}
+				continue
+			}
+			hdrName := path.Clean(hdr.Name)
+			if hdrName == ocispec.ImageLayoutFile {
+				if err = onUntarJSON(tr, &ociLayout); err != nil {
+					return fmt.Errorf("untar oci layout %q: %w", hdr.Name, err)
+				}
+
+			} else if hdrName == "manifest.json" {
+				if err = onUntarJSON(tr, &mfsts); err != nil {
+					return fmt.Errorf("untar manifest %q: %w", hdr.Name, err)
+				}
+
+			} else {
+
+				var (
+					imageConfigBytes []byte
+					ociimage         ocispec.Image
+					//config           ocispec.ImageConfig
+					buf bytes.Buffer
+				)
+				tee := io.TeeReader(tr, &buf)
+				s, _ := compression.DecompressStream(tee)
+				if _, err := archive.Apply(context.Background(), "untar", s); err == nil {
+					fmt.Println("apply", hdrName)
+					continue
+				}
+				imageConfigBytes, _ = io.ReadAll(&buf)
+				json.Unmarshal(imageConfigBytes, &ociimage)
+				if reflect.DeepEqual(ociimage.Config, ocispec.ImageConfig{}) {
+					continue
+				}
+				fmt.Println(ociimage.Config)
+
+			}
+
+		}
+
+		return nil
+	}
+}
+func onUntarJSON(r io.Reader, j interface{}) error {
+
+	const (
+		kib       = 1024
+		mib       = 1024 * kib
+		jsonLimit = 20 * mib
+	)
+
+	return json.NewDecoder(io.LimitReader(r, jsonLimit)).Decode(j)
 }
