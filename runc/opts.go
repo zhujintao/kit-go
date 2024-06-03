@@ -151,7 +151,7 @@ func SetImage(image string) createOpts {
 				var (
 					imageConfigBytes []byte
 					ociimage         ocispec.Image
-					//config           ocispec.ImageConfig
+
 					buf bytes.Buffer
 				)
 				tee := io.TeeReader(tr, &buf)
@@ -165,7 +165,11 @@ func SetImage(image string) createOpts {
 				if reflect.DeepEqual(ociimage.Config, ocispec.ImageConfig{}) {
 					continue
 				}
-				fmt.Println(ociimage.Config)
+				if reflect.DeepEqual(ociimage, ocispec.Image{}) {
+					continue
+				}
+
+				setImageConfig(c.Spec, ociimage.Config)
 
 			}
 
@@ -183,4 +187,25 @@ func onUntarJSON(r io.Reader, j interface{}) error {
 	)
 
 	return json.NewDecoder(io.LimitReader(r, jsonLimit)).Decode(j)
+}
+
+func onUntarBlob(ctx context.Context) error {
+
+	return nil
+}
+
+func setImageConfig(s *oci.Spec, config ocispec.ImageConfig) {
+
+	s.Process.Env = config.Env
+	cmd := config.Cmd
+	if s.Process.Args[0] == "" {
+		cmd = append(cmd, s.Process.Args[1:]...)
+		s.Process.Args = append(config.Entrypoint, cmd...)
+	}
+	cwd := config.WorkingDir
+	if cwd == "" {
+		cwd = "/"
+	}
+	s.Process.Cwd = cwd
+	s.Annotations["stop-signal"] = config.StopSignal
 }
