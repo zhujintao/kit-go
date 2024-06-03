@@ -30,7 +30,6 @@ func Container(image string, opts ...createOpts) *container {
 		RootlessEUID:     os.Geteuid() != 0,
 		RootlessCgroups:  false,
 	}
-	id := s.CgroupName
 
 	for _, o := range opts {
 		err := o(s)
@@ -39,6 +38,7 @@ func Container(image string, opts ...createOpts) *container {
 		}
 	}
 
+	id := s.CgroupName
 	if s.Spec.Hostname == "" {
 		s.Spec.Hostname = id
 	}
@@ -60,6 +60,8 @@ func Container(image string, opts ...createOpts) *container {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println(id)
 
 	c, err = libcontainer.Create(repo, id, config)
 	if err != nil {
