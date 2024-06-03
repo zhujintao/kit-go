@@ -156,7 +156,7 @@ func SetImage(image string) createOpts {
 				)
 				tee := io.TeeReader(tr, &buf)
 				s, _ := compression.DecompressStream(tee)
-				if _, err := archive.Apply(context.Background(), "untar", s); err == nil {
+				if _, err := archive.Apply(context.Background(), "rootfs", s); err == nil {
 					fmt.Println("apply", hdrName)
 					continue
 				}
