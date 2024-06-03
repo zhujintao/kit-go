@@ -63,6 +63,7 @@ func Container(id string, opts ...createOpts) *container {
 }
 
 func (c container) Run() {
+	fmt.Println(c.process)
 
 	err := c.Container.Run(c.process)
 	if err != nil {
