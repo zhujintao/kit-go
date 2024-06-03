@@ -102,8 +102,15 @@ func SetArgs(cmd string, args ...string) createOpts {
 	}
 }
 
+func SetId(id string) createOpts {
+	return func(c *specconv.CreateOpts) error {
+		c.CgroupName = id
+		return nil
+	}
+}
+
 // archive image path
-func SetImage(image string) createOpts {
+func setImage(image string, onlyConfig bool) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		reader, err := os.Open(image)
@@ -119,6 +126,10 @@ func SetImage(image string) createOpts {
 				RepoTags []string
 				Layers   []string
 			}
+			imageConfigBytes []byte
+			ociimage         ocispec.Image
+
+			buf bytes.Buffer
 		)
 
 		for {
@@ -129,6 +140,23 @@ func SetImage(image string) createOpts {
 			if err != nil {
 				return nil
 			}
+
+			if onlyConfig {
+
+				imageConfigBytes, _ = io.ReadAll(tr)
+				json.Unmarshal(imageConfigBytes, &ociimage)
+				if reflect.DeepEqual(ociimage.Config, ocispec.ImageConfig{}) {
+					continue
+				}
+				if reflect.DeepEqual(ociimage, ocispec.Image{}) {
+					continue
+				}
+
+				setImageConfig(c.Spec, ociimage.Config)
+
+				continue
+			}
+
 			if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
 				if hdr.Typeflag != tar.TypeDir {
 					fmt.Println("file", hdr.Name, "file type ignored")
@@ -148,12 +176,6 @@ func SetImage(image string) createOpts {
 
 			} else {
 
-				var (
-					imageConfigBytes []byte
-					ociimage         ocispec.Image
-
-					buf bytes.Buffer
-				)
 				tee := io.TeeReader(tr, &buf)
 				s, _ := compression.DecompressStream(tee)
 				if _, err := archive.Apply(context.Background(), "rootfs", s); err == nil {
@@ -178,6 +200,45 @@ func SetImage(image string) createOpts {
 		return nil
 	}
 }
+
+func readImageConfig(s *oci.Spec, image string) error {
+
+	reader, err := os.Open(image)
+	if err != nil {
+		return err
+	}
+
+	tr := tar.NewReader(reader)
+
+	for {
+		_, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil
+		}
+
+		var (
+			imageConfigBytes []byte
+			ociimage         ocispec.Image
+		)
+
+		imageConfigBytes, _ = io.ReadAll(tr)
+		json.Unmarshal(imageConfigBytes, &ociimage)
+		if reflect.DeepEqual(ociimage.Config, ocispec.ImageConfig{}) {
+			continue
+		}
+
+		fmt.Println(ociimage.Config)
+		setImageConfig(s, ociimage.Config)
+
+	}
+
+	return nil
+
+}
+
 func onUntarJSON(r io.Reader, j interface{}) error {
 
 	const (
@@ -195,7 +256,6 @@ func onUntarBlob(ctx context.Context) error {
 }
 
 func setImageConfig(s *oci.Spec, config ocispec.ImageConfig) {
-
 	s.Process.Env = config.Env
 	cmd := config.Cmd
 	if s.Process.Args[0] == "" {
