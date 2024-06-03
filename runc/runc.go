@@ -68,6 +68,7 @@ func Container(id string, opts ...createOpts) *container {
 func (c container) Run() {
 	const signalBufferSize = 2048
 	signals := make(chan os.Signal, signalBufferSize)
+
 	signal.Notify(signals)
 	err := c.Container.Run(c.process)
 	if err != nil {
@@ -75,6 +76,7 @@ func (c container) Run() {
 	}
 
 	pid1, err := c.process.Pid()
+	fmt.Println("pid", pid1)
 	if err != nil {
 		fmt.Println("process.Pid", err)
 		return
