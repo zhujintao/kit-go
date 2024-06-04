@@ -79,7 +79,8 @@ func Container(image string, opts ...createOpts) *container {
 	return &container{Container: c, process: p, id: id}
 }
 func (c *container) Start() {
-	c.Container.Start(c.process)
+	err := c.Container.Start(c.process)
+	fmt.Println(err)
 }
 func (c *container) Run() {
 
