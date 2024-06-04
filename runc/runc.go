@@ -14,6 +14,7 @@ import (
 var repo string = "/var/lib/libcontainer"
 
 type container struct {
+	id      string
 	process *libcontainer.Process
 	*libcontainer.Container
 }
@@ -38,6 +39,8 @@ func Container(image string, opts ...createOpts) *container {
 		}
 	}
 
+	fmt.Println(truncateID(generateID()))
+
 	id := s.CgroupName
 	if s.Spec.Hostname == "" {
 		s.Spec.Hostname = id
@@ -46,7 +49,12 @@ func Container(image string, opts ...createOpts) *container {
 	c, err := libcontainer.Load(repo, id)
 	if err == nil {
 		parserImage(image, true)(s)
-		return &container{Container: c}
+		p, err := newProcess(s.Spec.Process)
+		if err != nil {
+			panic(err)
+		}
+		log.Info("load container", "id", id)
+		return &container{Container: c, process: p, id: id}
 	}
 
 	_, err = os.Stat(s.Spec.Root.Path)
@@ -67,12 +75,12 @@ func Container(image string, opts ...createOpts) *container {
 		panic(err)
 	}
 	parserImage(image, false)(s)
-	p, err := newProcess(*s.Spec.Process)
+	p, err := newProcess(s.Spec.Process)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(id, "new start")
-	return &container{Container: c, process: p}
+	log.Info("new container", "id", id)
+	return &container{Container: c, process: p, id: id}
 }
 
 func (c *container) Run() {
@@ -81,7 +89,8 @@ func (c *container) Run() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(status)
+	log.Info(status.String(), "id", c.ID())
+
 	switch status {
 	case libcontainer.Created:
 
@@ -91,10 +100,10 @@ func (c *container) Run() {
 		c.runContainer()
 		return
 	case libcontainer.Running:
-		fmt.Println("cannot start an already running container")
+		log.Info("cannot start an already running container")
 		return
 	default:
-		fmt.Printf("cannot start a container in the %s state", status)
+		log.Info("cannot start a container", "state", status)
 		return
 	}
 
@@ -103,9 +112,14 @@ func (c *container) Run() {
 func (c *container) runContainer() {
 	const signalBufferSize = 2048
 
+	if c.process == nil {
+		log.Error("Process not set")
+		return
+	}
+
 	signals := make(chan os.Signal, signalBufferSize)
 	signal.Notify(signals)
-	fmt.Println(c.process.Args)
+
 	err := c.Container.Run(c.process)
 	fmt.Println("Container.Run", err)
 	if err != nil {

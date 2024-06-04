@@ -4,6 +4,7 @@ go 1.22.3
 
 require (
 	github.com/containerd/containerd v1.7.17
+	github.com/docker/docker v23.0.3+incompatible
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.2.0-rc.1.0.20240524171032-1aeefd9cbdda
 	github.com/opencontainers/runtime-spec v1.2.0

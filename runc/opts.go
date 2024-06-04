@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/oci"
+	"github.com/docker/docker/pkg/stringid"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
@@ -111,7 +112,7 @@ func SetId(id string) createOpts {
 
 // archive image path
 func parserImage(image string, onlyConfig bool) createOpts {
-	fmt.Println("parserImage", onlyConfig)
+	log.Info("parserImage")
 	return func(c *specconv.CreateOpts) error {
 
 		reader, err := os.Open(image)
@@ -225,4 +226,19 @@ func setImageConfig(s *oci.Spec, config ocispec.ImageConfig) {
 	}
 	s.Process.Cwd = cwd
 	s.Annotations["stop-signal"] = config.StopSignal
+}
+
+//svcs[i].ContainerName = fmt.Sprintf("%[1]s%[4]s%[2]s%[4]srun%[4]s%[3]s", c.project.Name, svcs[i].Name, idgen.TruncateID(idgen.GenerateID()), serviceparser.Separator)
+
+const (
+	IDLength      = 64
+	ShortIDLength = 12
+)
+
+func generateID(prefix string) string {
+
+	id := stringid.TruncateID(stringid.GenerateRandomID())
+
+	return id
+
 }
