@@ -21,6 +21,7 @@ type container struct {
 
 type NewGroup []createOpts
 
+// archive image path
 func Container(image string, opts ...createOpts) *container {
 
 	s := &specconv.CreateOpts{
@@ -36,7 +37,7 @@ func Container(image string, opts ...createOpts) *container {
 	for _, o := range opts {
 		err := o(s)
 		if err != nil {
-			fmt.Println("opts", err)
+			log.Debug("opts", err)
 		}
 	}
 
@@ -77,7 +78,9 @@ func Container(image string, opts ...createOpts) *container {
 	log.Info("new container", "id", id)
 	return &container{Container: c, process: p, id: id}
 }
-
+func (c *container) Start() {
+	c.Container.Start(c.process)
+}
 func (c *container) Run() {
 
 	status, err := c.Status()
@@ -88,10 +91,11 @@ func (c *container) Run() {
 
 	switch status {
 	case libcontainer.Created:
-
+		log.Info("libcontainer.Created")
 		c.Exec()
 		return
 	case libcontainer.Stopped:
+		log.Info("libcontainer.Stopped")
 		c.runContainer()
 		return
 	case libcontainer.Running:
@@ -116,7 +120,7 @@ func (c *container) runContainer() {
 	signal.Notify(signals)
 
 	err := c.Container.Run(c.process)
-	fmt.Println("Container.Run", err)
+
 	if err != nil {
 		c.Destroy()
 		return
