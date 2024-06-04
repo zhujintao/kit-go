@@ -130,8 +130,11 @@ func (c *container) Exec(cmd ...string) {
 	}
 
 	c.process.Init = false
-	c.Container.Run(c.process)
-
+	c.process.Args = cmd
+	err = c.Container.Run(c.process)
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+	}
 }
 
 func (c *container) runContainer() error {
