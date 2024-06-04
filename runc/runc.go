@@ -14,7 +14,6 @@ import (
 var repo string = "/var/lib/libcontainer"
 
 type container struct {
-	id      string
 	process *libcontainer.Process
 	*libcontainer.Container
 }
@@ -50,7 +49,7 @@ func Container(image string, opts ...createOpts) *container {
 			panic(err)
 		}
 		log.Info("load container", "id", id)
-		return &container{Container: c, process: p, id: id}
+		return &container{Container: c, process: p}
 	}
 
 	_, err = os.Stat(s.Spec.Root.Path)
@@ -67,7 +66,7 @@ func Container(image string, opts ...createOpts) *container {
 
 	c, err = libcontainer.Create(repo, id, config)
 	if err != nil {
-		log.Error("libcontainer.Create", err)
+		log.Error(err.Error())
 		panic(err)
 	}
 	parserImage(image, false)(s)
@@ -76,29 +75,39 @@ func Container(image string, opts ...createOpts) *container {
 		panic(err)
 	}
 	log.Info("new container", "id", id)
-	return &container{Container: c, process: p, id: id}
+	return &container{Container: c, process: p}
 }
-func (c *container) Start() {
+
+// 1.create
+// 2.run
+func (c *container) Start() error {
+
 	err := c.Container.Start(c.process)
-	fmt.Println(err)
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+	return nil
 }
+
+// start -> run, dea
 func (c *container) Run() {
 
 	status, err := c.Status()
 	if err != nil {
 		panic(err)
 	}
-	log.Info(status.String(), "id", c.ID())
 
 	switch status {
 	case libcontainer.Created:
-		log.Info("libcontainer.Created")
-		c.Exec()
+		err := c.Exec()
+		if err != nil {
+			log.Error(err.Error(), "id", c.ID())
+		}
 		return
 	case libcontainer.Stopped:
-		log.Info("libcontainer.Stopped")
 		c.runContainer()
-		return
+
 	case libcontainer.Running:
 		log.Info("cannot start an already running container")
 		return
@@ -109,30 +118,30 @@ func (c *container) Run() {
 
 }
 
-func (c *container) runContainer() {
+func (c *container) runContainer() error {
 	const signalBufferSize = 2048
 
 	if c.process == nil {
 		log.Error("Process not set")
-		return
+		return fmt.Errorf("Process not set")
 	}
 
 	signals := make(chan os.Signal, signalBufferSize)
 	signal.Notify(signals)
 
 	err := c.Container.Run(c.process)
-
 	if err != nil {
 		c.Destroy()
-		return
+		log.Error(err.Error())
+		return err
 	}
 
 	pid1, err := c.process.Pid()
-	fmt.Println("pid", pid1)
 	if err != nil {
-		fmt.Println("process.Pid", err)
-		return
+		log.Error(err.Error())
+		return err
 	}
+	log.Info(fmt.Sprintf("pid: %d", pid1), "id", c.ID())
 
 	for s := range signals {
 
@@ -146,20 +155,21 @@ func (c *container) runContainer() {
 			for _, e := range exits {
 				if e.pid == pid1 {
 					c.process.Wait()
-					return
+					return nil
 				}
 			}
 		case unix.SIGURG:
 		default:
 			us := s.(unix.Signal)
 			if err := unix.Kill(pid1, us); err != nil {
-				fmt.Println("kill", err)
+				log.Error(err.Error())
 			}
 		}
 
 	}
 
 	c.Destroy()
+	return nil
 
 }
 
