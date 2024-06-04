@@ -45,7 +45,7 @@ func Container(image string, opts ...createOpts) *container {
 
 	c, err := libcontainer.Load(repo, id)
 	if err == nil {
-		setImage(image, true)(s)
+		parserImage(image, true)(s)
 		return &container{Container: c}
 	}
 
@@ -61,14 +61,12 @@ func Container(image string, opts ...createOpts) *container {
 		panic(err)
 	}
 
-	fmt.Println(id)
-
 	c, err = libcontainer.Create(repo, id, config)
 	if err != nil {
-		log.Error("libcontainer.Create")
+		log.Error("libcontainer.Create", err)
 		panic(err)
 	}
-	setImage(image, false)(s)
+	parserImage(image, false)(s)
 	p, err := newProcess(*s.Spec.Process)
 	if err != nil {
 		panic(err)
@@ -83,6 +81,7 @@ func (c *container) Run() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(status)
 	switch status {
 	case libcontainer.Created:
 
@@ -106,8 +105,9 @@ func (c *container) runContainer() {
 
 	signals := make(chan os.Signal, signalBufferSize)
 	signal.Notify(signals)
-
+	fmt.Println(c.process.Args)
 	err := c.Container.Run(c.process)
+	fmt.Println("Container.Run", err)
 	if err != nil {
 		c.Destroy()
 		return
