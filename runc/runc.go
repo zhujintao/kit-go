@@ -31,6 +31,7 @@ func Container(image string, opts ...createOpts) *container {
 		RootlessEUID:     os.Geteuid() != 0,
 		RootlessCgroups:  false,
 	}
+	s.CgroupName = s.Spec.Hostname
 
 	for _, o := range opts {
 		err := o(s)
