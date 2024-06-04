@@ -100,7 +100,7 @@ func (c *container) Run() {
 
 	switch status {
 	case libcontainer.Created:
-		err := c.Exec()
+		err := c.Container.Exec()
 		if err != nil {
 			log.Error(err.Error(), "id", c.ID())
 		}
@@ -115,6 +115,22 @@ func (c *container) Run() {
 		log.Info("cannot start a container", "state", status)
 		return
 	}
+
+}
+
+func (c *container) Exec(cmd ...string) {
+	status, err := c.Status()
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	if status != libcontainer.Running {
+		log.Error("cannot exec in a stopped container")
+		return
+	}
+
+	c.process.Init = false
+	c.Container.Run(c.process)
 
 }
 
