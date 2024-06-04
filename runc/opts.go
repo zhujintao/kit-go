@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +18,6 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/oci"
-	"github.com/docker/docker/pkg/stringid"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
@@ -106,6 +107,7 @@ func SetArgs(cmd string, args ...string) createOpts {
 func SetId(id string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 		c.CgroupName = id
+		c.Spec.Hostname = id
 		return nil
 	}
 }
@@ -235,10 +237,27 @@ const (
 	ShortIDLength = 12
 )
 
-func generateID(prefix string) string {
+func generateID() string {
 
-	id := stringid.TruncateID(stringid.GenerateRandomID())
+	return _truncateID(_generateID())
+}
+func _generateID() string {
+	bytesLength := IDLength / 2
+	b := make([]byte, bytesLength)
+	n, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	if n != bytesLength {
+		panic(fmt.Errorf("expected %d bytes, got %d bytes", bytesLength, n))
+	}
+	return hex.EncodeToString(b)
 
-	return id
+}
 
+func _truncateID(id string) string {
+	if len(id) < ShortIDLength {
+		return id
+	}
+	return id[:ShortIDLength]
 }

@@ -16,6 +16,7 @@ func defaultSpec() *specs.Spec {
 	tmpl.SetProcessArgs([]string{""})
 	tmpl.ClearAnnotations()
 	tmpl.SetProcessTerminal(true)
+	tmpl.SetHostname(generateID())
 	tmpl.Config.Linux.Seccomp = nil
 
 	return tmpl.Config

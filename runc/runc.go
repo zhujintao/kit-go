@@ -39,13 +39,7 @@ func Container(image string, opts ...createOpts) *container {
 		}
 	}
 
-	fmt.Println(truncateID(generateID()))
-
-	id := s.CgroupName
-	if s.Spec.Hostname == "" {
-		s.Spec.Hostname = id
-	}
-
+	id := s.Spec.Hostname
 	c, err := libcontainer.Load(repo, id)
 	if err == nil {
 		parserImage(image, true)(s)
