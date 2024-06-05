@@ -8,6 +8,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -79,18 +80,33 @@ func Container(image string, opts ...createOpts) *container {
 }
 
 // 1.create
-// 2.run
-func (c *container) Start() error {
+// 2.start
+func (c *container) Start() {
 
+	handler := newSignalHandler()
 	err := c.Container.Start(c.process)
 	if err != nil {
 		log.Error(err.Error())
-		return err
+		return
 	}
-	return nil
+
+	status, err := handler.forward(c.process, false)
+	if err != nil {
+		c.process.Signal(unix.SIGKILL)
+		c.process.Wait()
+
+	}
+
+	if err == nil {
+		os.Exit(status)
+	}
+
+	log.Error(err.Error())
+
 }
 
-// start -> run, dea
+// run
+// run -d
 func (c *container) Run() {
 
 	status, err := c.Status()
@@ -106,7 +122,25 @@ func (c *container) Run() {
 		}
 		return
 	case libcontainer.Stopped:
-		c.runContainer()
+		handler := newSignalHandler()
+		err := c.Container.Run(c.process)
+		if err != nil {
+			c.Destroy()
+			log.Error(err.Error())
+			return
+		}
+
+		status, err := handler.forward(c.process, false)
+		if err != nil {
+			c.process.Signal(unix.SIGKILL)
+			c.process.Wait()
+
+		}
+
+		if err == nil {
+			os.Exit(status)
+		}
+		log.Error(err.Error())
 
 	case libcontainer.Running:
 		log.Info("cannot start an already running container")
@@ -137,6 +171,90 @@ func (c *container) Exec(cmd ...string) {
 	}
 }
 
+type signalHandler struct {
+	signals chan os.Signal
+}
+
+func newSignalHandler() *signalHandler {
+	const signalBufferSize = 2048
+	signals := make(chan os.Signal, signalBufferSize)
+	signal.Notify(signals)
+
+	return &signalHandler{signals: signals}
+
+}
+func (h *signalHandler) reap() (exits []exit, err error) {
+	var (
+		ws  unix.WaitStatus
+		rus unix.Rusage
+	)
+	for {
+		pid, err := unix.Wait4(-1, &ws, unix.WNOHANG, &rus)
+		if err != nil {
+			if err == unix.ECHILD {
+				return exits, nil
+			}
+			return nil, err
+		}
+		if pid <= 0 {
+			return exits, nil
+		}
+		exits = append(exits, exit{
+			pid:    pid,
+			status: utils.ExitStatus(ws),
+		})
+	}
+}
+func (h *signalHandler) forward(process *libcontainer.Process, detach bool) (int, error) {
+
+	if detach {
+		return 0, nil
+	}
+	pid1, err := process.Pid()
+	if err != nil {
+		return -1, err
+	}
+	for s := range h.signals {
+		switch s {
+		case unix.SIGWINCH:
+			// Ignore errors resizing, as above.
+
+		case unix.SIGCHLD:
+			exits, err := h.reap()
+			if err != nil {
+				logrus.Error(err)
+			}
+			for _, e := range exits {
+
+				log.Debug("process exited", "pid", e.pid, "status", e.status)
+
+				if e.pid == pid1 {
+					// call Wait() on the process even though we already have the exit
+					// status because we must ensure that any of the go specific process
+					// fun such as flushing pipes are complete before we return.
+					_, _ = process.Wait()
+					return e.status, nil
+				}
+			}
+		case unix.SIGURG:
+			// SIGURG is used by go runtime for async preemptive
+			// scheduling, so runc receives it from time to time,
+			// and it should not be forwarded to the container.
+			// Do nothing.
+		default:
+			us := s.(unix.Signal)
+			log.Debug(fmt.Sprintf("forwarding signal %d (%s) to %d", int(us), unix.SignalName(us), pid1))
+
+			if err := unix.Kill(pid1, us); err != nil {
+				log.Error(err.Error())
+			}
+		}
+	}
+
+	return -1, nil
+
+}
+
 func (c *container) runContainer() error {
 	const signalBufferSize = 2048
 
@@ -153,38 +271,6 @@ func (c *container) runContainer() error {
 		c.Destroy()
 		log.Error(err.Error())
 		return err
-	}
-
-	pid1, err := c.process.Pid()
-	if err != nil {
-		log.Error(err.Error())
-		return err
-	}
-	log.Info(fmt.Sprintf("pid: %d", pid1), "id", c.ID())
-
-	for s := range signals {
-
-		switch s {
-		case unix.SIGWINCH:
-		case unix.SIGCHLD:
-			exits, err := reap()
-			if err != nil {
-				fmt.Println("reap()", err)
-			}
-			for _, e := range exits {
-				if e.pid == pid1 {
-					c.process.Wait()
-					return nil
-				}
-			}
-		case unix.SIGURG:
-		default:
-			us := s.(unix.Signal)
-			if err := unix.Kill(pid1, us); err != nil {
-				log.Error(err.Error())
-			}
-		}
-
 	}
 
 	c.Destroy()
