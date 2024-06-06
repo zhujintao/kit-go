@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+
+	"strconv"
 	"strings"
 
 	"github.com/containerd/containerd/cio"
+
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
@@ -141,6 +144,42 @@ func (c *container) Run() error {
 
 	return nil
 
+}
+
+func (c *container) Stop() error {
+	state, err := c.State()
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
+	sigstr := "SIGTERM"
+	_, labels := utils.Annotations(state.Config.Labels)
+	if stopSignal, ok := labels["stop-signal"]; ok {
+		sigstr = stopSignal
+	}
+	singnal, err := parseSignal(sigstr)
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
+	err = c.Signal(singnal)
+	return err
+
+}
+func parseSignal(rawSignal string) (unix.Signal, error) {
+	s, err := strconv.Atoi(rawSignal)
+	if err == nil {
+		return unix.Signal(s), nil
+	}
+	sig := strings.ToUpper(rawSignal)
+	if !strings.HasPrefix(sig, "SIG") {
+		sig = "SIG" + sig
+	}
+	signal := unix.SignalNum(sig)
+	if signal == 0 {
+		return -1, fmt.Errorf("unknown signal %q", rawSignal)
+	}
+	return signal, nil
 }
 
 // execute additional processes in an existing container
