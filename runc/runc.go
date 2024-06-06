@@ -71,11 +71,13 @@ func Container(image string, opts ...createOpts) *container {
 		log.Error(err.Error())
 		panic(err)
 	}
+
 	parserImage(image, false)(s)
 	p, err := newProcess(s.Spec.Process)
 	if err != nil {
 		panic(err)
 	}
+
 	log.Info("new container", "id", c.ID())
 	return &container{Container: c, process: p}
 }
@@ -92,23 +94,8 @@ func (c *container) Create() error {
 
 }
 
-// run a container, automatically remove the container when it exits
-func (c *container) RunOne(detach bool) error {
-	err := c.run(detach)
-	if err != nil {
-		return err
-	}
-
-	return c.Destroy()
-
-}
-
 // run a container
-func (c *container) Run(detach bool) error {
-	return c.run(detach)
-}
-
-func (c *container) run(detach bool) error {
+func (c *container) Run() error {
 
 	status, err := c.Status()
 	if err != nil {
@@ -125,7 +112,7 @@ func (c *container) run(detach bool) error {
 		}
 		return nil
 	case libcontainer.Stopped:
-		handler := newSignalHandler()
+		//handler := newSignalHandler()
 		err := c.Container.Run(c.process)
 		if err != nil {
 			c.Destroy()
@@ -133,15 +120,15 @@ func (c *container) run(detach bool) error {
 			return err
 		}
 
-		status, err := handler.forward(c.process, detach)
-		if err != nil {
-			c.process.Signal(unix.SIGKILL)
-			c.process.Wait()
-		}
+		//status, err := handler.forward(c.process, detach)
+		//if err != nil {
+		//	c.process.Signal(unix.SIGKILL)
+		//	c.process.Wait()
+		//}
 
-		if err == nil {
-			os.Exit(status)
-		}
+		//if err == nil {
+		//	os.Exit(status)
+		//}
 
 	case libcontainer.Running:
 		log.Info("cannot start an already running container", "id", c.ID())
@@ -176,6 +163,7 @@ func (c *container) Exec(cmd ...string) {
 }
 
 func (c *container) Attach() error {
+
 	state, err := c.State()
 	if err != nil {
 		log.Error(err.Error(), "id", c.ID())
