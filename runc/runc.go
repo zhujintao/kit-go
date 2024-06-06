@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 
 	"strconv"
 	"strings"
@@ -163,7 +164,16 @@ func (c *container) Run() error {
 	return nil
 
 }
+func (c *container) destroy() error {
 
+	err := c.Destroy()
+	if err != nil {
+		return err
+	}
+
+	err = os.RemoveAll(filepath.Join(volrepo, c.ID()))
+	return err
+}
 func (c *container) Rm() error {
 
 	status, err := c.Status()
@@ -179,8 +189,11 @@ func (c *container) Rm() error {
 
 	}
 
-	c.Destroy()
-
+	err = c.destroy()
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
 	return nil
 
 }
