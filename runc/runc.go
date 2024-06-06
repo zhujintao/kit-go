@@ -75,43 +75,43 @@ func Container(image string, opts ...createOpts) *container {
 	if err != nil {
 		panic(err)
 	}
-	log.Info("new container", "id", id)
+	log.Info("new container", "id", c.ID())
 	return &container{Container: c, process: p}
 }
 
-// 1.create
-// 2.start
-func (c *container) Start() {
+// create container
+func (c *container) Create() error {
 
-	handler := newSignalHandler()
 	err := c.Container.Start(c.process)
 	if err != nil {
-		log.Error(err.Error())
-		return
+		log.Error(err.Error(), "id", c.ID())
+		return err
 	}
-
-	status, err := handler.forward(c.process, false)
-	if err != nil {
-		c.process.Signal(unix.SIGKILL)
-		c.process.Wait()
-
-	}
-
-	if err == nil {
-		os.Exit(status)
-	}
-
-	log.Error(err.Error())
+	return nil
 
 }
 
-// run
-// run -d
-func (c *container) Run() {
+// run a container, automatically remove the container when it exits
+func (c *container) RunOne(detach bool) error {
+	err := c.run(detach)
+	if err != nil {
+		return err
+	}
+	return c.Destroy()
+
+}
+
+// run a container
+func (c *container) Run(detach bool) error {
+	return c.run(detach)
+}
+
+func (c *container) run(detach bool) error {
 
 	status, err := c.Status()
 	if err != nil {
-		panic(err)
+		log.Error(err.Error(), "id", c.ID())
+		return err
 	}
 
 	switch status {
@@ -119,39 +119,42 @@ func (c *container) Run() {
 		err := c.Container.Exec()
 		if err != nil {
 			log.Error(err.Error(), "id", c.ID())
+			return err
 		}
-		return
+		return nil
 	case libcontainer.Stopped:
 		handler := newSignalHandler()
 		err := c.Container.Run(c.process)
 		if err != nil {
 			c.Destroy()
-			log.Error(err.Error())
-			return
+			log.Error(err.Error(), "id", c.ID())
+			return err
 		}
 
-		status, err := handler.forward(c.process, false)
+		status, err := handler.forward(c.process, detach)
 		if err != nil {
 			c.process.Signal(unix.SIGKILL)
 			c.process.Wait()
-
 		}
 
 		if err == nil {
 			os.Exit(status)
 		}
-		log.Error(err.Error())
+		log.Error(err.Error(), "id", c.ID())
 
 	case libcontainer.Running:
-		log.Info("cannot start an already running container")
-		return
+		log.Info("cannot start an already running container", "id", c.ID())
+		return nil
 	default:
-		log.Info("cannot start a container", "state", status)
-		return
+		log.Info("cannot start a container", "state", status, "id", c.ID())
+		return nil
 	}
+
+	return nil
 
 }
 
+// execute additional processes in an existing container
 func (c *container) Exec(cmd ...string) {
 	status, err := c.Status()
 	if err != nil {
@@ -159,7 +162,7 @@ func (c *container) Exec(cmd ...string) {
 		return
 	}
 	if status != libcontainer.Running {
-		log.Error("cannot exec in a stopped container")
+		log.Error("cannot exec in a stopped container", "id", c.ID())
 		return
 	}
 
