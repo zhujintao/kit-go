@@ -1,6 +1,7 @@
 package runc
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/cio"
+	securejoin "github.com/cyphar/filepath-securejoin"
 
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -17,7 +19,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var repo string = "/var/lib/libcontainer"
+var repo string = "/var/lib/libcontainer/containers"
+var volrepo string = "/var/lib/libcontainer/volumes"
 
 type container struct {
 	process *libcontainer.Process
@@ -47,9 +50,22 @@ func Container(image string, opts ...createOpts) *container {
 	}
 
 	id := s.Spec.Hostname
+
+	stateDir, err := securejoin.SecureJoin(repo, id)
+	if err != nil {
+		log.Error(err.Error(), "id", id)
+		panic(err)
+
+	}
+
+	flist, _ := os.ReadDir(stateDir)
+	if len(flist) == 0 {
+		os.Remove(stateDir)
+	}
+
 	c, err := libcontainer.Load(repo, id)
 	if err == nil {
-		parserImage(image, true)(s)
+		parserImage(id, image, true)(s)
 		p, err := newProcess(s.Spec.Process)
 		if err != nil {
 			panic(err)
@@ -72,11 +88,13 @@ func Container(image string, opts ...createOpts) *container {
 
 	c, err = libcontainer.Create(repo, id, config)
 	if err != nil {
-		log.Error(err.Error())
-		panic(err)
+		if !errors.Is(err, libcontainer.ErrExist) {
+
+			panic(err)
+		}
 	}
 
-	parserImage(image, false)(s)
+	parserImage(id, image, false)(s)
 	p, err := newProcess(s.Spec.Process)
 	if err != nil {
 		panic(err)
@@ -146,6 +164,27 @@ func (c *container) Run() error {
 
 }
 
+func (c *container) Rm() error {
+
+	status, err := c.Status()
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
+
+	if status == libcontainer.Running {
+
+		log.Error("cannot delete container that is not stopped", "status", status, "id", c.ID())
+		return fmt.Errorf("cannot delete container %s that is not stopped: %s", c.ID(), status.String())
+
+	}
+
+	c.Destroy()
+
+	return nil
+
+}
+
 func (c *container) Stop() error {
 	state, err := c.State()
 	if err != nil {
@@ -163,7 +202,11 @@ func (c *container) Stop() error {
 		return err
 	}
 	err = c.Signal(singnal)
-	return err
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
+	return nil
 
 }
 func parseSignal(rawSignal string) (unix.Signal, error) {

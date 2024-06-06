@@ -113,8 +113,8 @@ func SetId(id string) createOpts {
 }
 
 // archive image path
-func parserImage(image string, onlyConfig bool) createOpts {
-	log.Info("parserImage")
+func parserImage(id, image string, onlyConfig bool) createOpts {
+
 	return func(c *specconv.CreateOpts) error {
 
 		reader, err := os.Open(image)
@@ -154,6 +154,7 @@ func parserImage(image string, onlyConfig bool) createOpts {
 					continue
 				}
 				setImageConfig(c.Spec, ociimage.Config)
+				log.Info("config - " + hdr.Name)
 				break
 
 			}
@@ -179,14 +180,17 @@ func parserImage(image string, onlyConfig bool) createOpts {
 
 				tee := io.TeeReader(tr, &buf)
 				s, _ := compression.DecompressStream(tee)
-				if _, err := archive.Apply(context.Background(), "rootfs", s); err == nil {
-					fmt.Println("apply -", hdrName)
+				vol := path.Join(volrepo, id)
+				os.MkdirAll(vol, 0755)
+				if _, err := archive.Apply(context.Background(), vol, s); err == nil {
+					log.Info("apply - " + hdrName)
 					continue
 				}
 
 				imageConfigBytes, _ = io.ReadAll(&buf)
 				json.Unmarshal(imageConfigBytes, &ociimage)
 				if ociimage.Architecture == runtime.GOARCH {
+					log.Info("config - " + hdr.Name)
 					setImageConfig(c.Spec, ociimage.Config)
 				}
 
