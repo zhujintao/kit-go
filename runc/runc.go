@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/containerd/containerd/cio"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
@@ -97,6 +98,7 @@ func (c *container) RunOne(detach bool) error {
 	if err != nil {
 		return err
 	}
+
 	return c.Destroy()
 
 }
@@ -140,7 +142,6 @@ func (c *container) run(detach bool) error {
 		if err == nil {
 			os.Exit(status)
 		}
-		log.Error(err.Error(), "id", c.ID())
 
 	case libcontainer.Running:
 		log.Info("cannot start an already running container", "id", c.ID())
@@ -172,6 +173,38 @@ func (c *container) Exec(cmd ...string) {
 	if err != nil {
 		log.Error(err.Error(), "id", c.ID())
 	}
+}
+
+func (c *container) Attach() error {
+	state, err := c.State()
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
+
+	fifos := cio.NewFIFOSet(cio.Config{
+		Stdin:  fmt.Sprintf("/proc/%d/fd/0", state.InitProcessPid),
+		Stdout: fmt.Sprintf("/proc/%d/fd/1", state.InitProcessPid),
+		Stderr: fmt.Sprintf("/proc/%d/fd/2", state.InitProcessPid),
+	}, nil)
+
+	ioAttach := cio.NewAttach(cio.WithStdio)
+	io, err := ioAttach(fifos)
+	if err != nil {
+		log.Error(err.Error(), "id", c.ID())
+		return err
+	}
+
+	io.Wait()
+
+	defer func() {
+		io.Cancel()
+		io.Wait()
+		io.Close()
+	}()
+
+	return nil
+
 }
 
 type signalHandler struct {
