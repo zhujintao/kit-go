@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/containerd/containerd/cio"
 	"github.com/opencontainers/runc/libcontainer"
@@ -143,7 +144,8 @@ func (c *container) Run() error {
 }
 
 // execute additional processes in an existing container
-func (c *container) Exec(cmd ...string) {
+func (c *container) Exec(cmd string) {
+
 	status, err := c.Status()
 	if err != nil {
 		log.Error(err.Error())
@@ -155,7 +157,7 @@ func (c *container) Exec(cmd ...string) {
 	}
 
 	c.process.Init = false
-	c.process.Args = cmd
+	c.process.Args = strings.Fields(cmd)
 	err = c.Container.Run(c.process)
 	if err != nil {
 		log.Error(err.Error(), "id", c.ID())
