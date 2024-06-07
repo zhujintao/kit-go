@@ -18,6 +18,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -32,9 +33,18 @@ type container struct {
 
 type NewGroup []createOpts
 
+type State specs.State
+
 // archive image path
 func Container(image string, opts ...createOpts) *container {
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
 
+		err := cmdHook()
+		if err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	s := &specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		NoPivotRoot:      false,
