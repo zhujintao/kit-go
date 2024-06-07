@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-var CmdHookFn func(state State) error
+var CmdHookFn func(state State) int
 
 func cmdHook() {
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
@@ -15,10 +15,8 @@ func cmdHook() {
 		if CmdHookFn == nil {
 			os.Exit(0)
 		}
-		err := CmdHookFn(state)
-		if err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
+		code := CmdHookFn(state)
+		os.Exit(code)
+
 	}
 }
