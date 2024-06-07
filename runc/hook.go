@@ -2,11 +2,12 @@ package runc
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
 // CmdHookFn backcall must come first
-var CmdHookFn func(state State) (exitCode int)
+var CmdHookFn func(state State) error
 
 func cmdHook() {
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
@@ -16,8 +17,12 @@ func cmdHook() {
 		if CmdHookFn == nil {
 			os.Exit(0)
 		}
-		exitCode := CmdHookFn(state)
-		os.Exit(exitCode)
+		err := CmdHookFn(state)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
 
 	}
 }
