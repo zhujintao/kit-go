@@ -51,7 +51,8 @@ func Container(image string, opts ...createOpts) *container {
 	}
 
 	id := s.Spec.Hostname
-
+	vol := filepath.Join(volrepo, id)
+	os.MkdirAll(vol, 0755)
 	stateDir, err := securejoin.SecureJoin(repo, id)
 	if err != nil {
 		log.Error(err.Error(), "id", id)
@@ -75,13 +76,7 @@ func Container(image string, opts ...createOpts) *container {
 		return &container{Container: c, process: p}
 	}
 
-	_, err = os.Stat(s.Spec.Root.Path)
-	if os.IsNotExist(err) {
-		log.Error("rootfs dir not exist, use OptWithRootPath")
-		os.Exit(1)
-
-	}
-
+	s.Spec.Root.Path = vol
 	config, err := specconv.CreateLibcontainerConfig(s)
 	if err != nil {
 		panic(err)
@@ -136,6 +131,7 @@ func (c *container) Run() error {
 		return nil
 	case libcontainer.Stopped:
 		//handler := newSignalHandler()
+
 		err := c.Container.Run(c.process)
 		if err != nil {
 			c.Destroy()
@@ -194,6 +190,7 @@ func (c *container) Rm() error {
 		log.Error(err.Error(), "id", c.ID())
 		return err
 	}
+	log.Info("container clean", "id", c.ID())
 	return nil
 
 }

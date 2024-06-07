@@ -2,7 +2,6 @@ package runc
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -11,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -20,6 +20,7 @@ import (
 	"github.com/containerd/containerd/oci"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/specconv"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 type createOpts func(c *specconv.CreateOpts) error
@@ -116,90 +117,52 @@ func SetId(id string) createOpts {
 func parserImage(id, image string, onlyConfig bool) createOpts {
 
 	return func(c *specconv.CreateOpts) error {
-
-		reader, err := os.Open(image)
-		if err != nil {
-			return err
-		}
-
 		var (
-			tr        = tar.NewReader(reader)
-			ociLayout ocispec.ImageLayout
-			mfsts     []struct {
+			ociimage ocispec.Image
+			mfsts    []struct {
 				Config   string
 				RepoTags []string
 				Layers   []string
 			}
 		)
 
-		for {
-			hdr, err := tr.Next()
-			if err == io.EOF {
-				break
+		manifestFn := func(tr *tar.Reader, hdr *tar.Header) {
+			if path.Clean(hdr.Name) == "manifest.json" {
+				onUntarJSON(tr, &mfsts)
 			}
-			if err != nil {
-				return nil
+		}
+		tarFor(image, manifestFn)
+
+		configfn := func(tr *tar.Reader, hdr *tar.Header) {
+			for _, mfst := range mfsts {
+				if path.Clean(hdr.Name) == mfst.Config {
+					onUntarJSON(tr, &ociimage)
+					log.Info("config - " + mfst.Config)
+				}
 			}
-			var (
-				imageConfigBytes []byte
-				ociimage         ocispec.Image
+		}
 
-				buf bytes.Buffer
-			)
-			if onlyConfig {
-
-				imageConfigBytes, _ = io.ReadAll(tr)
-				json.Unmarshal(imageConfigBytes, &ociimage)
-				if ociimage.Architecture != runtime.GOARCH {
-					continue
-				}
-				setImageConfig(c.Spec, ociimage.Config)
-				log.Info("config - " + hdr.Name)
-				break
-
+		tarFor(image, configfn)
+		setImageConfig(c.Spec, ociimage.Config)
+		if onlyConfig {
+			return nil
+		}
+		vol := filepath.Join(volrepo, id)
+		for _, mfst := range mfsts {
+			for _, layer := range mfst.Layers {
+				tarFor(image, func(tr *tar.Reader, hdr *tar.Header) {
+					if path.Clean(hdr.Name) == layer {
+						s, _ := compression.DecompressStream(tr)
+						archive.Apply(context.Background(), vol, s)
+						log.Info("apply - " + layer)
+					}
+				})
 			}
-
-			if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
-				if hdr.Typeflag != tar.TypeDir {
-					fmt.Println("file", hdr.Name, "file type ignored")
-				}
-				continue
-			}
-			hdrName := path.Clean(hdr.Name)
-			if hdrName == ocispec.ImageLayoutFile {
-				if err = onUntarJSON(tr, &ociLayout); err != nil {
-					return fmt.Errorf("untar oci layout %q: %w", hdr.Name, err)
-				}
-
-			} else if hdrName == "manifest.json" {
-				if err = onUntarJSON(tr, &mfsts); err != nil {
-					return fmt.Errorf("untar manifest %q: %w", hdr.Name, err)
-				}
-
-			} else {
-
-				tee := io.TeeReader(tr, &buf)
-				s, _ := compression.DecompressStream(tee)
-				vol := path.Join(volrepo, id)
-				os.MkdirAll(vol, 0755)
-				if _, err := archive.Apply(context.Background(), vol, s); err == nil {
-					log.Info("apply - " + hdrName)
-					continue
-				}
-
-				imageConfigBytes, _ = io.ReadAll(&buf)
-				json.Unmarshal(imageConfigBytes, &ociimage)
-				if ociimage.Architecture == runtime.GOARCH {
-					log.Info("config - " + hdr.Name)
-					setImageConfig(c.Spec, ociimage.Config)
-				}
-
-			}
-
 		}
 
 		return nil
 	}
+
 }
 
 func onUntarJSON(r io.Reader, j interface{}) error {
@@ -213,14 +176,16 @@ func onUntarJSON(r io.Reader, j interface{}) error {
 	return json.NewDecoder(io.LimitReader(r, jsonLimit)).Decode(j)
 }
 
-func onUntarBlob(ctx context.Context) error {
-
-	return nil
-}
-
 func setImageConfig(s *oci.Spec, config ocispec.ImageConfig) {
+	defaults := config.Env
 
-	s.Process.Env = config.Env
+	if len(defaults) == 0 {
+		defaults = []string{
+			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		}
+	}
+
+	s.Process.Env = defaults
 	cmd := config.Cmd
 	if s.Process.Args[0] == "" {
 		cmd = append(cmd, s.Process.Args[1:]...)
@@ -232,6 +197,10 @@ func setImageConfig(s *oci.Spec, config ocispec.ImageConfig) {
 	}
 	s.Process.Cwd = cwd
 	s.Annotations["stop-signal"] = config.StopSignal
+
+	s.Process.User = specs.User{
+		Username: config.User}
+
 }
 
 //svcs[i].ContainerName = fmt.Sprintf("%[1]s%[4]s%[2]s%[4]srun%[4]s%[3]s", c.project.Name, svcs[i].Name, idgen.TruncateID(idgen.GenerateID()), serviceparser.Separator)
@@ -264,4 +233,30 @@ func _truncateID(id string) string {
 		return id
 	}
 	return id[:ShortIDLength]
+}
+
+func tarFor(image string, fn func(tr *tar.Reader, hdr *tar.Header)) {
+
+	reader, err := os.Open(image)
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	defer reader.Close()
+	tr := tar.NewReader(reader)
+
+	for {
+
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return
+		}
+
+		fn(tr, hdr)
+
+	}
+
 }
