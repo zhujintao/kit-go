@@ -14,4 +14,9 @@ func init() {
 		libcontainer.Init()
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
+
+		os.Exit(0)
+	}
+
 }

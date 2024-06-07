@@ -35,11 +35,6 @@ type NewGroup []createOpts
 // archive image path
 func Container(image string, opts ...createOpts) *container {
 
-	if len(os.Args) > 1 && os.Args[1] == "hook" {
-		fmt.Println("-------------------------")
-		os.Exit(0)
-	}
-
 	s := &specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		NoPivotRoot:      false,
