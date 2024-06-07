@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 
@@ -12,13 +13,11 @@ import (
 
 	"github.com/containerd/containerd/cio"
 	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/vishvananda/netlink"
 
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -35,6 +34,11 @@ type NewGroup []createOpts
 
 // archive image path
 func Container(image string, opts ...createOpts) *container {
+
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
+		fmt.Println("-------------------------")
+		os.Exit(0)
+	}
 
 	s := &specconv.CreateOpts{
 		UseSystemdCgroup: false,
@@ -84,28 +88,16 @@ func Container(image string, opts ...createOpts) *container {
 	if err != nil {
 		panic(err)
 	}
+	path, _ := exec.LookPath(os.Args[0])
+	fullPath, _ := filepath.Abs(path)
 
-	preStart := configs.NewFunctionHook(func(s *specs.State) error {
+	hook := configs.NewCommandHook(configs.Command{
 
-		la := netlink.NewLinkAttrs()
-		la.Name = "foo"
-		mybridge := &netlink.Bridge{LinkAttrs: la}
-		err := netlink.LinkAdd(mybridge)
-		if err != nil {
-			log.Error(err.Error(), "id", c.ID())
-			return err
-		}
-		eth0, _ := netlink.LinkByName("eth0")
-		err = netlink.LinkSetMaster(eth0, mybridge)
-		if err != nil {
-			return err
-		}
-
-		return nil
-
+		Path: fullPath,
+		Args: []string{fullPath, "hook"},
 	})
 
-	config.Hooks = configs.Hooks{configs.Poststart: configs.HookList{preStart}}
+	config.Hooks = configs.Hooks{configs.Poststart: configs.HookList{hook}}
 	c, err = libcontainer.Create(repo, id, config)
 	if err != nil {
 		if !errors.Is(err, libcontainer.ErrExist) {
