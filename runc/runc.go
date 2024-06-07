@@ -12,10 +12,13 @@ import (
 
 	"github.com/containerd/containerd/cio"
 	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/vishvananda/netlink"
 
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -82,6 +85,27 @@ func Container(image string, opts ...createOpts) *container {
 		panic(err)
 	}
 
+	preStart := configs.NewFunctionHook(func(s *specs.State) error {
+
+		la := netlink.NewLinkAttrs()
+		la.Name = "foo"
+		mybridge := &netlink.Bridge{LinkAttrs: la}
+		err := netlink.LinkAdd(mybridge)
+		if err != nil {
+			log.Error(err.Error(), "id", c.ID())
+			return err
+		}
+		eth0, _ := netlink.LinkByName("eth0")
+		err = netlink.LinkSetMaster(eth0, mybridge)
+		if err != nil {
+			return err
+		}
+
+		return nil
+
+	})
+
+	config.Hooks = configs.Hooks{configs.Poststart: configs.HookList{preStart}}
 	c, err = libcontainer.Create(repo, id, config)
 	if err != nil {
 		if !errors.Is(err, libcontainer.ErrExist) {
