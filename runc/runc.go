@@ -72,7 +72,7 @@ func Container(image string, opts ...createOpts) *container {
 		if err != nil {
 			panic(err)
 		}
-		log.Info("load container", "id", id)
+		log.Debug("load container", "id", id)
 		return &container{Container: c, process: p}
 	}
 
@@ -96,7 +96,7 @@ func Container(image string, opts ...createOpts) *container {
 		panic(err)
 	}
 
-	log.Info("new container", "id", c.ID())
+	log.Debug("new container", "id", c.ID())
 	return &container{Container: c, process: p}
 }
 

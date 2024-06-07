@@ -137,7 +137,7 @@ func parserImage(id, image string, onlyConfig bool) createOpts {
 			for _, mfst := range mfsts {
 				if path.Clean(hdr.Name) == mfst.Config {
 					onUntarJSON(tr, &ociimage)
-					log.Info("config - " + mfst.Config)
+					log.Debug("config - "+mfst.Config, "id", id)
 				}
 			}
 		}
@@ -154,7 +154,7 @@ func parserImage(id, image string, onlyConfig bool) createOpts {
 					if path.Clean(hdr.Name) == layer {
 						s, _ := compression.DecompressStream(tr)
 						archive.Apply(context.Background(), vol, s)
-						log.Info("apply - " + layer)
+						log.Debug("apply - "+layer, "id", id)
 					}
 				})
 			}
