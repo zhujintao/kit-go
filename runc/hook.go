@@ -5,7 +5,8 @@ import (
 	"os"
 )
 
-var CmdHookFn func(state State) int
+// CmdHookFn backcall must come first
+var CmdHookFn func(state State) (exitCode int)
 
 func cmdHook() {
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
@@ -15,8 +16,8 @@ func cmdHook() {
 		if CmdHookFn == nil {
 			os.Exit(0)
 		}
-		code := CmdHookFn(state)
-		os.Exit(code)
+		exitCode := CmdHookFn(state)
+		os.Exit(exitCode)
 
 	}
 }
