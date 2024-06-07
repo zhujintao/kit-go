@@ -16,6 +16,10 @@ func init() {
 
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 
+		err := cmdHook()
+		if err != nil {
+			os.Exit(1)
+		}
 		os.Exit(0)
 	}
 
