@@ -37,7 +37,7 @@ type State specs.State
 
 // archive image path
 func Container(image string, opts ...createOpts) *container {
-	cmdHook()
+
 	s := &specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		NoPivotRoot:      false,
@@ -54,6 +54,8 @@ func Container(image string, opts ...createOpts) *container {
 			log.Debug("opts", err)
 		}
 	}
+
+	postStartHook()
 
 	id := s.Spec.Hostname
 	vol := filepath.Join(volrepo, id)

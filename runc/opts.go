@@ -26,7 +26,7 @@ import (
 type createOpts func(c *specconv.CreateOpts) error
 
 // use oci opts  "github.com/containerd/containerd/oci"
-func SetWithOciSpec(opts ...oci.SpecOpts) createOpts {
+func WithContainerOciSpec(opts ...oci.SpecOpts) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		for _, o := range opts {
@@ -61,7 +61,7 @@ func skipFunc(s string, substrs ...string) bool {
 }
 
 // default /var/lib/libcontainer
-func SetRepoPath(root string) createOpts {
+func SetConfigRepoPath(root string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 		repo = root
 		return nil
@@ -70,7 +70,7 @@ func SetRepoPath(root string) createOpts {
 }
 
 // path is the absolute path to the container's root filesystem.
-func SetRootPath(path string) createOpts {
+func SetConfigRootPath(path string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 		c.Spec.Root.Path = path
 		return nil
@@ -78,10 +78,9 @@ func SetRootPath(path string) createOpts {
 
 }
 
-func SetEnv(env string) createOpts {
+func WithContainerEnv(env string) createOpts {
 	return func(c *specconv.CreateOpts) error {
-
-		c.Spec.Process.Env = append(c.Spec.Process.Env, strings.Fields(env)...)
+		oci.WithEnv(strings.Fields(env))(nil, nil, nil, c.Spec)
 		return nil
 
 	}
@@ -91,7 +90,7 @@ func SetEnv(env string) createOpts {
 // setArgs replaces the cmd and args
 //
 // cmd is "" original cmd unchanged
-func SetArgs(cmd string, args ...string) createOpts {
+func WithContainerArgs(cmd string, args ...string) createOpts {
 	return func(c *specconv.CreateOpts) error {
 
 		if cmd != "" {
@@ -105,8 +104,9 @@ func SetArgs(cmd string, args ...string) createOpts {
 	}
 }
 
-func SetId(id string) createOpts {
+func WithContainerId(id string) createOpts {
 	return func(c *specconv.CreateOpts) error {
+
 		c.CgroupName = id
 		c.Spec.Hostname = id
 		return nil
@@ -179,13 +179,9 @@ func onUntarJSON(r io.Reader, j interface{}) error {
 func setImageConfig(s *oci.Spec, config ocispec.ImageConfig) {
 	defaults := config.Env
 
-	if len(defaults) == 0 {
-		defaults = []string{
-			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		}
-	}
+	oci.WithDefaultPathEnv(context.TODO(), nil, nil, s)
 
-	s.Process.Env = defaults
+	s.Process.Env = append(s.Process.Env, defaults...)
 	cmd := config.Cmd
 	if s.Process.Args[0] == "" {
 		cmd = append(cmd, s.Process.Args[1:]...)

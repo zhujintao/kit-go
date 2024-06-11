@@ -4,20 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
 // CmdHookFn backcall must come first
-var CmdHookFn func(state State) error
+var postStartHookFn func(state State) error
 
-func cmdHook() {
+func postStartHook() {
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 
 		var state State
 		json.NewDecoder(os.Stdin).Decode(&state)
-		if CmdHookFn == nil {
+		if postStartHookFn == nil {
 			os.Exit(0)
 		}
-		err := CmdHookFn(state)
+		err := postStartHookFn(state)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
@@ -25,4 +27,13 @@ func cmdHook() {
 		os.Exit(0)
 
 	}
+}
+
+func WithContainerPoststartHook(fn func(state State) error) createOpts {
+
+	return func(c *specconv.CreateOpts) error {
+		postStartHookFn = fn
+		return nil
+	}
+
 }
