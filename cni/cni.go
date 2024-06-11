@@ -141,22 +141,23 @@ func (n *macvlan) MacVlan(pid int) *ipaddr {
 
 }
 
-func (n *ipaddr) SetIpAddr(ipaddr, gw string) {
+// ipaddr format ip/mask like 192.168.168.68/24
+func (n *ipaddr) SetIpAddr(ipaddr, gw string) error {
 
 	if n == nil {
-		return
+		return nil
 	}
 	netns, err := ns.GetNS(n.netNsPath)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	defer netns.Close()
 
 	ip, ipnet, err := net.ParseCIDR(ipaddr)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	netip := &net.IPNet{
@@ -194,6 +195,8 @@ func (n *ipaddr) SetIpAddr(ipaddr, gw string) {
 
 		return nil
 	})
+
+	return nil
 
 }
 
