@@ -1,4 +1,4 @@
-module github.com/zhujintao/kit-go/ipam/etcd
+module github.com/zhujintao/kit-go/ipam
 
 go 1.22.4
 
