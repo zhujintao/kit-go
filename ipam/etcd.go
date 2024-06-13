@@ -19,7 +19,7 @@ type Store struct {
 	ctx    context.Context
 }
 
-func New(vlanId int, etcdEndpoint []string) (*Store, error) {
+func newEtcd(vlanId int, etcdEndpoint []string) (*Store, error) {
 
 	cli, err := etcdv3.New(etcdv3.Config{Endpoints: etcdEndpoint, DialTimeout: 1 * time.Second})
 	if err != nil {
