@@ -18,6 +18,7 @@ type ipam struct {
 }
 
 type ipRange allocator.Range
+type result *current.IPConfig
 
 // subnet subnet. like 192.168.1.0/24
 //
@@ -83,10 +84,11 @@ func Etcd(etcdEndpoint string, ipRange *ipRange) *ipam {
 	return &ipam{s: s, rangeset: allocator.RangeSet{allocator.Range(*ipRange)}}
 }
 
-func (i *ipam) allocIP(id, ifName string, ip ...string) {
+func (i *ipam) allocIP(id, ifName string, ip ...string) (result, error) {
 
 	requestedIPs := map[string]net.IP{}
 	allocs := []*allocator.IPAllocator{}
+	i.rangeset.Canonicalize()
 
 	allocator := allocator.NewIPAllocator(&i.rangeset, i.s, 0)
 
@@ -106,6 +108,7 @@ func (i *ipam) allocIP(id, ifName string, ip ...string) {
 	}
 
 	ipConf, err := allocator.Get(id, ifName, requestedIP)
+
 	if err != nil {
 
 		if !strings.Contains(err.Error(), fmt.Sprintf("has been allocated to %s, duplicate allocation is not allowed", id)) {
@@ -113,8 +116,7 @@ func (i *ipam) allocIP(id, ifName string, ip ...string) {
 				_ = alloc.Release(id, ifName)
 			}
 
-			fmt.Printf("failed to allocate for range %d: %v", 0, err)
-			return
+			return nil, fmt.Errorf("failed to allocate for range %d: %v", 0, err)
 		}
 
 		allocatedIPs := i.s.GetByID(id, ifName)
@@ -128,6 +130,7 @@ func (i *ipam) allocIP(id, ifName string, ip ...string) {
 		}
 
 	}
+
 	allocs = append(allocs, allocator)
 
 	if len(requestedIPs) != 0 {
@@ -137,13 +140,23 @@ func (i *ipam) allocIP(id, ifName string, ip ...string) {
 		}
 	}
 
-	fmt.Println(ipConf)
+	return result(ipConf), nil
 }
-func (i *ipam) Dhcp(id, ifName string) {
-	i.allocIP(id, ifName)
+func (i *ipam) Dhcp(id, ifName string) result {
+	r, err := i.allocIP(id, ifName)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	return r
 }
-func (i *ipam) Static(id, ifName, ip string) {
+func (i *ipam) Static(id, ifName, ip string) result {
 
-	i.allocIP(id, ifName, ip)
+	r, err := i.allocIP(id, ifName, ip)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	return r
 
 }

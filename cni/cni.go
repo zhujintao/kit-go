@@ -142,6 +142,7 @@ func (n *macvlan) MacVlan(pid int) *ipaddr {
 }
 
 // ipaddr format ip/mask like 192.168.168.68/24
+
 func (n *ipaddr) SetIpAddr(ipaddr, gw string) error {
 
 	if n == nil {

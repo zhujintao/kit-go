@@ -30,6 +30,7 @@ func newEtcd(vlanId int, etcdEndpoint []string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	l := concurrency.NewMutex(s, prefix)
 
 	return &Store{etcd: s, l: l, prefix: prefix, ctx: context.Background()}, nil
@@ -43,7 +44,7 @@ func (s *Store) LastReservedIP(rangeID string) (net.IP, error) {
 		return nil, err
 	}
 	if len(result.Kvs) == 0 {
-		return nil, fmt.Errorf("not found")
+		return nil, nil
 	}
 	return net.ParseIP(string(result.Kvs[0].Value)), nil
 }
