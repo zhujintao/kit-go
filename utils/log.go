@@ -9,7 +9,7 @@ import (
 
 type Logger *slog.Logger
 
-func Newlog() Logger {
+func NewSlog() Logger {
 
 	l := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
