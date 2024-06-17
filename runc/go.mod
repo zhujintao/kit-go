@@ -1,6 +1,6 @@
 module github.com/zhujintao/kit-go/runc
 
-go 1.22.3
+go 1.22.4
 
 require (
 	github.com/containerd/containerd v1.7.18
@@ -48,6 +48,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/urfave/cli v1.22.14 // indirect
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
+	github.com/zhujintao/kit-go/utils v0.0.0-20240617094730-daa5583a5adb // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/net v0.24.0 // indirect
