@@ -52,6 +52,7 @@ func Container(image string, opts ...createOpts) *container {
 		err := o(s)
 		if err != nil {
 			log.Debug("opts", err)
+
 		}
 	}
 
