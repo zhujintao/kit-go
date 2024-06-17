@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
-type Logger *slog.Logger
+type Logger struct {
+	*slog.Logger
+}
 
 func NewSlog() Logger {
 
