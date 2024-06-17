@@ -11,7 +11,7 @@ type Logger struct {
 	*slog.Logger
 }
 
-func NewSlog() Logger {
+func Slog() Logger {
 
 	l := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
