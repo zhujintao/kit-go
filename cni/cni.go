@@ -4,27 +4,58 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/containernetworking/plugins/pkg/ip"
-	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/vishvananda/netlink"
 )
 
 type nic struct {
 	masterNic netlink.Link
 }
-type macvlan struct {
-	vlanNic netlink.Link
+
+type vlan struct {
+	masterNic netlink.Link
 }
 
-type ipaddr struct {
-	netNsPath string
+type ipconfig struct {
+	nic netlink.Link
 }
 
-// Nic("eth0").Vlan(10).MacVlan(pid)
+func (i *ipconfig) SetIp(ip string, gateway string) {
 
-func Nic(nicName string) *nic {
+	_, ipnet, err := net.ParseCIDR(ip)
+	if err != nil {
+		return
+	}
 
+	addr := &netlink.Addr{IPNet: ipnet}
+	err = netlink.AddrReplace(i.nic, addr)
+	if err != nil {
+		fmt.Println("xxx", err)
+		return
+	}
+
+	route := netlink.Route{
+		Dst: &net.IPNet{IP: net.IPv4(0, 0, 0, 0), Mask: net.CIDRMask(0, 32)},
+		Gw:  net.ParseIP(gateway),
+	}
+
+	err = netlink.RouteAddEcmp(&route)
+	if err != nil {
+		fmt.Println("aaa", err)
+		return
+	}
+}
+
+// pid process id
+func (v *vlan) MacVlan(pid ...int) *ipconfig {
+	macvlan(v.masterNic)
+	return &ipconfig{}
+}
+
+func Nic(networkInterface ...string) *nic {
+	nicName := "eth0"
+	if len(networkInterface) == 1 {
+		nicName = networkInterface[0]
+	}
 	n, err := netlink.LinkByName(nicName)
 	if err != nil {
 		fmt.Println(nicName, err)
@@ -33,204 +64,35 @@ func Nic(nicName string) *nic {
 	return &nic{masterNic: n}
 }
 
-func (n *nic) DelVlan(vlanId int, nicName ...string) {
+// vlanId vlan id.
+// nicName if spect. default nic.vlanid like eth0.10
+func (n *nic) Vlan(vlanId int) *vlan {
+	nicName := fmt.Sprintf("%s.%d", n.masterNic.Attrs().Name, vlanId)
 
-	if n == nil {
-		return
-	}
+	//vlan, err := netlink.LinkByName(nicName)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return nil
+	//}
 
-	if len(nicName) != 1 {
-		nicName = []string{fmt.Sprintf("%s.%d", n.masterNic.Attrs().Name, vlanId)}
-	}
+	nic := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: nicName, ParentIndex: n.masterNic.Attrs().Index}, VlanId: vlanId, VlanProtocol: netlink.VLAN_PROTOCOL_8021Q}
+	netlink.LinkAdd(nic)
+	netlink.LinkSetUp(nic)
 
-	vlinic, err := netlink.LinkByName(nicName[0])
-	if err != nil {
-		fmt.Println(nicName[0], err)
-		return
-	}
-
-	err = netlink.LinkDel(vlinic)
-	if err != nil {
-		fmt.Println(vlinic.Attrs().Name, err)
-		return
-	}
-	fmt.Println(vlinic.Attrs().Name, "delete ok")
-
-}
-
-func (n *nic) Vlan(vlanId int, nicName ...string) *macvlan {
-
-	if n == nil {
-		return nil
-	}
-
-	if len(nicName) != 1 {
-		nicName = []string{fmt.Sprintf("%s.%d", n.masterNic.Attrs().Name, vlanId)}
-	}
-
-	vlinic, err := netlink.LinkByName(nicName[0])
-	if err != nil {
-		linknic := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: nicName[0], ParentIndex: n.masterNic.Attrs().Index}, VlanId: vlanId, VlanProtocol: netlink.VLAN_PROTOCOL_8021Q}
-		err := netlink.LinkAdd(linknic)
-
-		if err != nil {
-			return nil
-		}
-		vlinic, _ := netlink.LinkByName(nicName[0])
-		netlink.LinkSetUp(vlinic)
-		fmt.Println(nicName[0], "create success")
-		return &macvlan{vlanNic: vlinic}
-	}
-	netlink.LinkSetUp(vlinic)
-	fmt.Println(nicName[0], "already exists")
-	return &macvlan{vlanNic: vlinic}
-
+	return &vlan{masterNic: nic}
 }
 
 // pid process id
-func (n *macvlan) MacVlan(pid int) *ipaddr {
+func (n *nic) MacVlan(pid ...int) *ipconfig {
 
-	if n == nil {
-		return nil
-	}
+	macvlan(n.masterNic)
 
-	netNsPath := fmt.Sprintf("/proc/%d/ns/net", pid)
-	netns, err := ns.GetNS(netNsPath)
-	if err != nil {
-		return nil
-	}
-
-	defer netns.Close()
-
-	ifName := "eth0"
-	tmpName, _ := ip.RandomVethName()
-	linkAttrs := netlink.LinkAttrs{Name: tmpName,
-		ParentIndex: n.vlanNic.Attrs().Index,
-		Namespace:   netlink.NsFd(int(netns.Fd())),
-	}
-	mvnic := &netlink.Macvlan{LinkAttrs: linkAttrs}
-	err = netlink.LinkAdd(mvnic)
-	if err != nil {
-		fmt.Println("linkadd mvnic", err)
-		return nil
-	}
-
-	err = netns.Do(func(_ ns.NetNS) error {
-
-		//nic, err := netlink.LinkByName(ifName)
-
-		err = ip.RenameLink(tmpName, ifName)
-		if err != nil {
-			netlink.LinkDel(mvnic)
-			return err
-		}
-		nic, _ := netlink.LinkByName(ifName)
-		err = netlink.LinkSetUp(nic)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil
-	}
-	sysctl.Sysctl(fmt.Sprintf("net/ipv4/conf/%s/arp_notify"), "1")
-	return &ipaddr{netNsPath: netNsPath}
-
+	return &ipconfig{}
 }
 
-// ipaddr format ip/mask like 192.168.168.68/24
+func macvlan(masterNic netlink.Link) {
+	nic := &netlink.Macvlan{LinkAttrs: netlink.LinkAttrs{Name: "ss", ParentIndex: masterNic.Attrs().Index}}
 
-func (n *ipaddr) SetIpAddr(ipaddr, gw string) error {
-
-	if n == nil {
-		return nil
-	}
-	netns, err := ns.GetNS(n.netNsPath)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	defer netns.Close()
-
-	ip, ipnet, err := net.ParseCIDR(ipaddr)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	netip := &net.IPNet{
-		IP:   ip,
-		Mask: ipnet.Mask,
-	}
-	ifName := "eth0"
-
-	netns.Do(func(_ ns.NetNS) error {
-
-		link, err := netlink.LinkByName(ifName)
-
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-
-		addr := &netlink.Addr{IPNet: netip}
-		err = netlink.AddrReplace(link, addr)
-		if err != nil {
-			fmt.Println("xxx", err)
-			return err
-		}
-
-		route := netlink.Route{
-			Dst: &net.IPNet{IP: net.IPv4(0, 0, 0, 0), Mask: net.CIDRMask(0, 32)},
-			Gw:  net.ParseIP(gw),
-		}
-
-		err = netlink.RouteAddEcmp(&route)
-		if err != nil {
-			fmt.Println("aaa", err)
-			return err
-		}
-
-		return nil
-	})
-
-	return nil
-
-}
-
-func CreateVlan(masterNicName string, vlanId int, nicName ...string) *nic {
-
-	if len(nicName) != 1 {
-		nicName = []string{fmt.Sprintf("%s.%d", masterNicName, vlanId)}
-	}
-
-	_, err := netlink.LinkByName(nicName[1])
-	if err == nil {
-		return &nic{}
-	}
-
-	mNic, err := netlink.LinkByName(masterNicName)
-	if err != nil {
-		return nil
-	}
-	linknic := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: nicName[1], ParentIndex: mNic.Attrs().Index}, VlanId: vlanId, VlanProtocol: netlink.VLAN_PROTOCOL_8021Q}
-	netlink.LinkAdd(linknic)
-
-	return &nic{}
-}
-
-func BindMacvlan(masterNic, pid string) {
-
-	netNsPath := fmt.Sprintf("/proc/%d/ns/net", pid)
-
-	netns, err := ns.GetNS(netNsPath)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer netns.Close()
-
+	err := netlink.LinkAdd(nic)
+	netlink.LinkSetUp(nic)
 }

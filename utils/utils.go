@@ -4,6 +4,12 @@ import (
 	"strconv"
 )
 
+func CheckNil(s interface{}) bool {
+
+	return s == nil
+
+}
+
 /*
 可转换的类型
 
@@ -13,11 +19,6 @@ import (
 	 float64 -> float64
 	 bool	 -> bool
 */
-func CheckNil(s interface{}) bool {
-
-	return s == nil
-
-}
 func ToType(s interface{}, t string) interface{} {
 
 	switch v := s.(type) {
