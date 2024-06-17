@@ -48,7 +48,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/urfave/cli v1.22.14 // indirect
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
-	github.com/zhujintao/kit-go/utils v0.0.0-20240617100447-f49031a55740 // indirect
+	github.com/zhujintao/kit-go/utils v0.0.0-20240617101216-c39863447614 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/net v0.24.0 // indirect

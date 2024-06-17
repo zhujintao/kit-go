@@ -30,5 +30,5 @@ func NewSlog() Logger {
 		},
 	}))
 
-	return l
+	return Logger{l}
 }
