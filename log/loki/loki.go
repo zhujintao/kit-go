@@ -13,6 +13,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/model/labels"
 
 	"github.com/grafana/dskit/flagext"
 	"github.com/grafana/loki/pkg/push"
@@ -21,11 +22,7 @@ import (
 )
 
 const (
-	contentType  = "application/x-protobuf"
-	maxErrMsgLen = 1024
-
-	// Label reserved to override the tenant ID while processing
-	// pipeline stages
+	contentType           = "application/x-protobuf"
 	ReservedLabelTenantID = "__tenant_id__"
 )
 
@@ -36,21 +33,25 @@ type client struct {
 	client *http.Client
 }
 
-//loger:=loki.NewCliet()
-//loger.Debef
-
 func New(lokiUrl string) *client {
 
 	cfg := config.HTTPClientConfig{}
-	c, err := config.NewClientFromConfig(cfg, "loki-client")
+	c, err := config.NewClientFromConfig(cfg, "promtail", config.WithHTTP2Disabled())
 	if err != nil {
 
 		return nil
 	}
-	return &client{client: c}
+	var clientURL flagext.URLValue
+	err = clientURL.Set(lokiUrl)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	return &client{client: c, url: clientURL}
 }
 
-func (c *client) Log(labels model.LabelSet, line string) {
+func (c *client) log(labels model.LabelSet, line string) {
 
 	req := logproto.PushRequest{Streams: make([]logproto.Stream, 0)}
 	req.Streams = append(req.Streams, push.Stream{})
@@ -65,8 +66,17 @@ func (c *client) Log(labels model.LabelSet, line string) {
 
 }
 
-func (c *client) Msg(entry api.Entry) {
-	batch := newBatch(0, entry)
+func (c *client) Msg(line interface{}) {
+
+	labels := labels.NewBuilder(nil)
+	labels.Set("stream", "stdout")
+
+	lbs := make(model.LabelSet)
+	for _, l := range labels.Labels() {
+		lbs[model.LabelName(l.Name)] = model.LabelValue(l.Value)
+	}
+
+	batch := newBatch(0, api.Entry{Labels: lbs, Entry: logproto.Entry{Timestamp: time.Now(), Line: fmt.Sprintf("%v", line)}})
 	c.sendBatch("", batch)
 }
 
@@ -77,7 +87,8 @@ func (c *client) sendBatch(tenantID string, batch *batch) {
 		fmt.Println(err)
 		return
 	}
-	c.send(context.Background(), tenantID, buf)
+	int, err := c.send(context.Background(), tenantID, buf)
+	fmt.Println(int, err)
 }
 
 func (c *client) send(ctx context.Context, tenantID string, buf []byte) (int, error) {
