@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"path"
@@ -11,7 +12,27 @@ type Logger struct {
 	*slog.Logger
 }
 
-func Slog() Logger {
+var level *slog.LevelVar = &slog.LevelVar{}
+
+// Debug = -4
+//
+// Info   = 0
+//
+// Warn   = 4
+//
+// Error  = 8
+func SlogLevel(logLevel int) {
+	level.Set(slog.Level(logLevel))
+}
+func Slog(logfile ...string) Logger {
+
+	if len(logfile) == 1 {
+		f, err := os.OpenFile(logfile[0], os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err == nil {
+			io.MultiWriter(os.Stderr, f)
+		}
+
+	}
 
 	l := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
@@ -28,6 +49,7 @@ func Slog() Logger {
 			}
 			return a
 		},
+		Level: level,
 	}))
 
 	return Logger{l}
