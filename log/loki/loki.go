@@ -6,7 +6,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -21,6 +23,62 @@ import (
 	"github.com/grafana/loki/v3/pkg/logproto"
 )
 
+type LokiHandler struct {
+	url  string
+	opts slog.HandlerOptions
+	mu   *sync.Mutex
+}
+
+func NewLokiHandler(lokiUrl string, opts *slog.HandlerOptions) *LokiHandler {
+
+	if opts == nil {
+		opts = &slog.HandlerOptions{}
+	}
+
+	var clientURL flagext.URLValue
+	clientURL.Set(lokiUrl)
+
+	return &LokiHandler{
+		url:  lokiUrl,
+		opts: *opts,
+		mu:   &sync.Mutex{},
+	}
+
+}
+
+func (l *LokiHandler) Handle(_ context.Context, r slog.Record) error {
+
+	lbs := make(model.LabelSet, r.NumAttrs())
+	r.Attrs(func(a slog.Attr) bool {
+		lbs[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
+		return true
+	})
+	batch := newBatch(0, api.Entry{Labels: lbs, Entry: logproto.Entry{Timestamp: r.Time, Line: r.Message}})
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	err := newClient(l.url).sendBatch("", batch)
+	return err
+}
+
+func (l *LokiHandler) Enabled(_ context.Context, level slog.Level) bool {
+
+	minLevel := slog.LevelInfo
+	if l.opts.Level != nil {
+		minLevel = l.opts.Level.Level()
+	}
+	return level >= minLevel
+}
+
+func (l *LokiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	fmt.Println("WithAttrs", attrs)
+	return l
+}
+
+func (l *LokiHandler) WithGroup(name string) slog.Handler {
+	fmt.Println("WithGroup", name)
+	return l
+}
+
 const (
 	contentType           = "application/x-protobuf"
 	ReservedLabelTenantID = "__tenant_id__"
@@ -33,7 +91,7 @@ type client struct {
 	client *http.Client
 }
 
-func New(lokiUrl string) *client {
+func newClient(lokiUrl string) *client {
 
 	cfg := config.HTTPClientConfig{}
 	c, err := config.NewClientFromConfig(cfg, "promtail", config.WithHTTP2Disabled())
@@ -42,11 +100,7 @@ func New(lokiUrl string) *client {
 		return nil
 	}
 	var clientURL flagext.URLValue
-	err = clientURL.Set(lokiUrl)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
+	clientURL.Set(lokiUrl)
 
 	return &client{client: c, url: clientURL}
 }
@@ -80,15 +134,17 @@ func (c *client) Msg(line interface{}) {
 	c.sendBatch("", batch)
 }
 
-func (c *client) sendBatch(tenantID string, batch *batch) {
+func (c *client) sendBatch(tenantID string, batch *batch) error {
 
 	buf, _, err := batch.encode()
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
-	int, err := c.send(context.Background(), tenantID, buf)
-	fmt.Println(int, err)
+	_, err = c.send(context.Background(), tenantID, buf)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *client) send(ctx context.Context, tenantID string, buf []byte) (int, error) {
