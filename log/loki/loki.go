@@ -27,6 +27,15 @@ import (
 	"github.com/grafana/loki/v3/pkg/logproto"
 )
 
+type Level int
+
+const (
+	LevelDebug Level = -4
+	LevelInfo  Level = 0
+	LevelWarn  Level = 4
+	LevelError Level = 8
+)
+
 type LokiHandler struct {
 	url      string
 	opts     slog.HandlerOptions
@@ -34,24 +43,43 @@ type LokiHandler struct {
 	jobLabel string
 }
 
-// NewLokiHandler creates a [LokiHandler] that writes to loki server,
-// lokiUrl is loki push api
 // jobLabel is label job id
-func NewLokiHandler(lokiUrl string, jobLabel string) *LokiHandler {
+//
+// logLevel default info
+type Config struct {
+	URL      string
+	JobLabel string
+	Level    Level
+}
 
-	var clientURL flagext.URLValue
-	clientURL.Set(lokiUrl)
+// jobLabel is label job id
+//
+// logLevel default info
+//
+// -4 Debug
+//
+// 0  Info
+//
+// 4  Warn
+//
+// 8  Error
 
+// NewLokiHandler creates a [LokiHandler] that writes to loki server,
+func NewLokiHandler(config Config) *LokiHandler {
+
+	var level *slog.LevelVar = &slog.LevelVar{}
+	level.Set(slog.Level(config.Level))
 	return &LokiHandler{
-		url:      lokiUrl,
+		url:      config.URL,
 		mu:       &sync.Mutex{},
-		jobLabel: jobLabel,
+		jobLabel: config.JobLabel,
+		opts:     slog.HandlerOptions{Level: level},
 	}
 
 }
 
 func (l *LokiHandler) Handle(_ context.Context, r slog.Record) error {
-	fmt.Printf("%+v", r)
+
 	var buf buffer.Buffer = *buffer.New()
 	lbs := make(model.LabelSet, r.NumAttrs())
 
