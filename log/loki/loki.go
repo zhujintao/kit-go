@@ -8,8 +8,12 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"path"
+	"runtime"
 	"sync"
 	"time"
+
+	"github.com/zhujintao/kit-go/log/loki/internal/buffer"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -24,36 +28,69 @@ import (
 )
 
 type LokiHandler struct {
-	url  string
-	opts slog.HandlerOptions
-	mu   *sync.Mutex
+	url      string
+	opts     slog.HandlerOptions
+	mu       *sync.Mutex
+	jobLabel string
 }
 
-func NewLokiHandler(lokiUrl string, opts *slog.HandlerOptions) *LokiHandler {
-
-	if opts == nil {
-		opts = &slog.HandlerOptions{}
-	}
+// NewLokiHandler creates a [LokiHandler] that writes to loki server,
+// lokiUrl is loki push api
+// jobLabel is label job id
+func NewLokiHandler(lokiUrl string, jobLabel string) *LokiHandler {
 
 	var clientURL flagext.URLValue
 	clientURL.Set(lokiUrl)
 
 	return &LokiHandler{
-		url:  lokiUrl,
-		opts: *opts,
-		mu:   &sync.Mutex{},
+		url:      lokiUrl,
+		mu:       &sync.Mutex{},
+		jobLabel: jobLabel,
 	}
 
 }
 
 func (l *LokiHandler) Handle(_ context.Context, r slog.Record) error {
-
+	var buf buffer.Buffer = *buffer.New()
 	lbs := make(model.LabelSet, r.NumAttrs())
+
+	if !r.Time.IsZero() {
+		buf.WriteString(" ")
+		buf.WriteString("time")
+		buf.WriteByte('=')
+		buf.WriteString(r.Time.Format("2006-01-02 15:04:05.000"))
+
+	}
+
+	buf.WriteString(" ")
+	buf.WriteString("level")
+	buf.WriteByte('=')
+	buf.WriteString(r.Level.String())
+	lbs[model.LabelName("level")] = model.LabelValue(r.Level.String())
+
+	fs := runtime.CallersFrames([]uintptr{r.PC})
+	f, _ := fs.Next()
+	buf.WriteString(" ")
+	buf.WriteString("source")
+	buf.WriteByte('=')
+	buf.WriteString(fmt.Sprintf("%s:%d", path.Base(f.File), f.Line))
+
+	buf.WriteString(" " + "msg=" + r.Message)
+
 	r.Attrs(func(a slog.Attr) bool {
+
+		buf.WriteString(" ")
+		buf.WriteString(string(a.Key))
+		buf.WriteByte('=')
+		buf.WriteString(a.Value.String())
 		lbs[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
 		return true
 	})
-	batch := newBatch(0, api.Entry{Labels: lbs, Entry: logproto.Entry{Timestamp: r.Time, Line: r.Message}})
+	if l.jobLabel != "" {
+		lbs[model.LabelName("job")] = model.LabelValue(l.jobLabel)
+	}
+
+	batch := newBatch(0, api.Entry{Labels: lbs, Entry: logproto.Entry{Timestamp: r.Time, Line: buf.String()}})
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	err := newClient(l.url).sendBatch("", batch)

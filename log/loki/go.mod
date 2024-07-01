@@ -2,6 +2,8 @@ module github.com/zhujintao/kit-go/log/loki
 
 go 1.22.4
 
+replace log/slog/internal/buffer => /usr/lib/go/src/log/slog/internal/buffer
+
 require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
