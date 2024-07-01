@@ -51,6 +51,7 @@ func NewLokiHandler(lokiUrl string, jobLabel string) *LokiHandler {
 }
 
 func (l *LokiHandler) Handle(_ context.Context, r slog.Record) error {
+	fmt.Printf("%+v", r)
 	var buf buffer.Buffer = *buffer.New()
 	lbs := make(model.LabelSet, r.NumAttrs())
 
