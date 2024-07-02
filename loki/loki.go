@@ -104,6 +104,7 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 		appendAttr(&line, a.Key, a.Value.String())
 		return true
 	})
+	l.send(r.Time, line.String())
 }
 func (l *loki) Send(message string, args ...any) {
 
