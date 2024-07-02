@@ -92,7 +92,8 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	var line buffer.Buffer = *buffer.New()
 	var pc uintptr
 	var pcs [1]uintptr
-	runtime.Callers(4, pcs[:])
+
+	runtime.Callers(3, pcs[:])
 	pc = pcs[0]
 	r := slog.NewRecord(time.Now(), 0, message, pc)
 	appendAttr(&line, "time", r.Time.Format("2006-01-02 15:04:05.000"))
