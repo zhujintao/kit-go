@@ -90,7 +90,11 @@ func appendAttr(line *buffer.Buffer, k, v string) {
 func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 
 	var line buffer.Buffer = *buffer.New()
-	r := slog.NewRecord(time.Now(), 0, message, 0)
+	var pc uintptr
+	var pcs [1]uintptr
+	runtime.Callers(4, pcs[:])
+	pc = pcs[0]
+	r := slog.NewRecord(time.Now(), 0, message, pc)
 	appendAttr(&line, "time", r.Time.Format("2006-01-02 15:04:05.000"))
 	appendAttr(&line, "level", level)
 	l.labels[model.LabelName("level")] = model.LabelValue(level)
@@ -109,7 +113,11 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 func (l *loki) Send(message string, args ...any) {
 
 	var line buffer.Buffer = *buffer.New()
-	r := slog.NewRecord(time.Now(), 0, message, 0)
+	var pc uintptr
+	var pcs [1]uintptr
+	runtime.Callers(4, pcs[:])
+	pc = pcs[0]
+	r := slog.NewRecord(time.Now(), 0, message, pc)
 	appendAttr(&line, "msg", r.Message)
 	r.Add(args...)
 	r.Attrs(func(a slog.Attr) bool {
