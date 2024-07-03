@@ -88,7 +88,9 @@ func NewLoki(URL ...string) *loki {
 		url = URL[0]
 	}
 	if url == "" {
+
 		fmt.Println("set LOKI_PUSH_URL")
+		return nil
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
