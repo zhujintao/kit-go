@@ -53,9 +53,18 @@ func (l *loki) SetJob(value string) *loki {
 	return l
 }
 
-// Set a Label Namespace
-func (l *loki) SetNamespace(value string) *loki {
-	l.labels[model.LabelName("namespace")] = model.LabelValue(value)
+// Add Labels AddLabels(k,v,k,v)
+func (l *loki) AddLabels(labels ...any) *loki {
+
+	r := slog.NewRecord(time.Now(), 0, "", 0)
+	r.Add(labels...)
+	r.Attrs(func(a slog.Attr) bool {
+
+		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
+
+		return true
+	})
+
 	return l
 }
 
