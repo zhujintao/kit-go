@@ -34,6 +34,7 @@ type loki struct {
 	lokiURL  string
 	client   *http.Client
 	labels   model.LabelSet
+	args     []any
 	tenantID string
 }
 
@@ -45,6 +46,11 @@ func (l *loki) SetTenantID(id string) *loki {
 
 func (l *loki) SetJobLabel(value string) *loki {
 	l.labels[model.LabelName("job")] = model.LabelValue(value)
+	return l
+}
+
+func (l *loki) AddArgs(args ...any) *loki {
+	l.args = args
 	return l
 }
 
@@ -109,6 +115,7 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	appendAttr(&line, "msg", r.Message)
 
 	r.Add(args...)
+	r.Add(l.args...)
 
 	r.Attrs(func(a slog.Attr) bool {
 		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
@@ -129,6 +136,7 @@ func (l *loki) Send(message string, args ...any) {
 	r := slog.NewRecord(time.Now(), 0, message, 0)
 	appendAttr(&line, "msg", r.Message)
 	r.Add(args...)
+	r.Add(l.args...)
 	r.Attrs(func(a slog.Attr) bool {
 		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
 		if strings.ToLower(a.Key) == "job" {
