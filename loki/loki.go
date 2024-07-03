@@ -48,7 +48,9 @@ func (l *loki) SetJobLabel(value string) *loki {
 	return l
 }
 
-// URL loki push address, env LOKI_PUSH_URL
+// URL loki push address
+//
+// env LOKI_PUSH_URL
 func NewLoki(URL ...string) *loki {
 	url := os.ExpandEnv("${LOKI_PUSH_URL}")
 	if len(URL) == 1 {
