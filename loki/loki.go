@@ -38,19 +38,22 @@ type loki struct {
 	tenantID string
 }
 
+// Set Loki Tenant ID
 func (l *loki) SetTenantID(id string) *loki {
 
 	l.tenantID = id
 	return l
 }
 
-func (l *loki) SetJobLabel(value string) *loki {
+// Set a Label Job
+func (l *loki) SetJob(value string) *loki {
 	l.labels[model.LabelName("job")] = model.LabelValue(value)
 	return l
 }
 
-func (l *loki) AddArgs(args ...any) *loki {
-	l.args = args
+// Set a Label Namespace
+func (l *loki) SetNamespace(value string) *loki {
+	l.labels[model.LabelName("namespace")] = model.LabelValue(value)
 	return l
 }
 
