@@ -48,11 +48,14 @@ func (l *loki) SetJobLabel(value string) *loki {
 	return l
 }
 
+// URL loki push address, env LOKI_PUSH_URL
 func NewLoki(URL ...string) *loki {
-
-	url := os.ExpandEnv("LOKI_PUSH_URL")
+	url := os.ExpandEnv("${LOKI_PUSH_URL}")
 	if len(URL) == 1 {
 		url = URL[0]
+	}
+	if url == "" {
+		panic(fmt.Errorf("set LOKI_PUSH_URL"))
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -65,11 +68,7 @@ func NewLoki(URL ...string) *loki {
 	}
 	l.labels[model.LabelName("hostname")] = model.LabelValue(hostname)
 	var clientURL flagext.URLValue
-	err = clientURL.Set(l.lokiURL)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
+	clientURL.Set(l.lokiURL)
 
 	if !strings.Contains(clientURL.Path, postPath) {
 		clientURL.Path = postPath
