@@ -78,6 +78,7 @@ func NewLoki(URL ...string) *loki {
 	l := &loki{
 		lokiURL: url,
 		labels:  make(model.LabelSet),
+		timeout: time.Second * 1,
 	}
 	l.labels[model.LabelName("hostname")] = model.LabelValue(hostname)
 	var clientURL flagext.URLValue
