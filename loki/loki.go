@@ -87,9 +87,7 @@ func NewLoki(URL ...string) *loki {
 	if len(URL) == 1 {
 		url = URL[0]
 	}
-	if url == "" {
-		fmt.Println("set LOKI_PUSH_URL")
-	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		fmt.Println(err)
@@ -126,7 +124,10 @@ func appendAttr(line *buffer.Buffer, k, v string) {
 }
 
 func (l *loki) Log(t time.Time, level string, message string, args ...any) {
-
+	if l.lokiURL == "" {
+		fmt.Println("set LOKI_PUSH_URL")
+		return
+	}
 	var line buffer.Buffer = *buffer.New()
 
 	r := slog.NewRecord(time.Now(), 0, message, 0)
@@ -153,7 +154,10 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 }
 
 func (l *loki) Send(message string, args ...any) {
-
+	if l.lokiURL == "" {
+		fmt.Println("set LOKI_PUSH_URL")
+		return
+	}
 	var line buffer.Buffer = *buffer.New()
 
 	r := slog.NewRecord(time.Now(), 0, message, 0)
