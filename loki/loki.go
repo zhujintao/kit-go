@@ -3,6 +3,7 @@ package loki
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -36,6 +37,7 @@ type loki struct {
 	labels   model.LabelSet
 	args     []any
 	tenantID string
+	timeout  time.Duration
 }
 
 // Set Loki Tenant ID
@@ -66,7 +68,7 @@ func NewLoki(URL ...string) *loki {
 		url = URL[0]
 	}
 	if url == "" {
-		panic(fmt.Errorf("set LOKI_PUSH_URL"))
+		fmt.Println("set LOKI_PUSH_URL")
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -93,7 +95,7 @@ func NewLoki(URL ...string) *loki {
 		return nil
 	}
 
-	l.client.Timeout = 0
+	l.client.Timeout = l.timeout
 
 	return l
 }
@@ -164,7 +166,9 @@ func (l *loki) send(t time.Time, msg string) {
 		return
 	}
 	buf = snappy.Encode(nil, buf)
-	req, err := http.NewRequest("POST", l.lokiURL, bytes.NewReader(buf))
+	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", l.lokiURL, bytes.NewReader(buf))
 	if err != nil {
 		fmt.Println(err)
 		return
