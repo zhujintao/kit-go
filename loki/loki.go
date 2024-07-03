@@ -45,6 +45,11 @@ func (l *loki) SetTenantID(id string) *loki {
 	return l
 }
 
+func (l *loki) SetJobLabel(value string) *loki {
+	l.labels[model.LabelName("job")] = model.LabelValue(value)
+	return l
+}
+
 func NewLoki(URL string) *loki {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -103,18 +108,23 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	fs := runtime.CallersFrames([]uintptr{r.PC})
 	f, _ := fs.Next()
 	source := fmt.Sprintf("%s:%d", path.Base(f.File), f.Line)
-	fmt.Println(source)
 	appendAttr(&line, "source", source)
 	appendAttr(&line, "msg", r.Message)
 
 	r.Add(args...)
+
 	r.Attrs(func(a slog.Attr) bool {
 		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
+		if strings.ToLower(a.Key) == "job" {
+			return true
+		}
 		appendAttr(&line, a.Key, a.Value.String())
 		return true
 	})
+
 	l.send(r.Time, line.String())
 }
+
 func (l *loki) Send(message string, args ...any) {
 
 	var line buffer.Buffer = *buffer.New()
@@ -127,6 +137,9 @@ func (l *loki) Send(message string, args ...any) {
 	r.Add(args...)
 	r.Attrs(func(a slog.Attr) bool {
 		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
+		if strings.ToLower(a.Key) == "job" {
+			return true
+		}
 		appendAttr(&line, a.Key, a.Value.String())
 		return true
 	})
