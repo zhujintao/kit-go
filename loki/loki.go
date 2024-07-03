@@ -125,7 +125,7 @@ func appendAttr(line *buffer.Buffer, k, v string) {
 
 func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	if l.lokiURL == postPath {
-		fmt.Println("set LOKI_PUSH_URL")
+		fmt.Println("LOKI_PUSH_URL must be defined")
 		return
 	}
 	var line buffer.Buffer = *buffer.New()
@@ -155,7 +155,7 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 
 func (l *loki) Send(message string, args ...any) {
 	if l.lokiURL == postPath {
-		fmt.Println("set LOKI_PUSH_URL")
+		fmt.Println("LOKI_PUSH_URL must be defined")
 		return
 	}
 	var line buffer.Buffer = *buffer.New()
