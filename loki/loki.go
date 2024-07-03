@@ -29,7 +29,7 @@ const (
 	postPath     = "/loki/api/v1/push"
 )
 
-var UserAgent = fmt.Sprintf("promtail/%s", build.Version)
+var userAgent = fmt.Sprintf("promtail/%s", build.Version)
 
 type loki struct {
 	lokiURL  string
@@ -89,7 +89,7 @@ func NewLoki(URL ...string) *loki {
 	}
 
 	cfg := config.DefaultHTTPClientConfig
-	l.client, err = config.NewClientFromConfig(cfg, "loki-cli", config.WithHTTP2Disabled())
+	l.client, err = config.NewClientFromConfig(cfg, "promtail", config.WithHTTP2Disabled())
 	if err != nil {
 		fmt.Println(err)
 		return nil
@@ -174,7 +174,7 @@ func (l *loki) send(t time.Time, msg string) {
 		return
 	}
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", userAgent)
 	if l.tenantID != "" {
 		req.Header.Set("X-Scope-OrgID", l.tenantID)
 	}
