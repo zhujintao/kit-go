@@ -93,7 +93,7 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	var pc uintptr
 	var pcs [1]uintptr
 
-	runtime.Callers(4, pcs[:])
+	runtime.Callers(2, pcs[:])
 	pc = pcs[0]
 	r := slog.NewRecord(time.Now(), 0, message, pc)
 
@@ -120,7 +120,7 @@ func (l *loki) Send(message string, args ...any) {
 	var line buffer.Buffer = *buffer.New()
 	var pc uintptr
 	var pcs [1]uintptr
-	runtime.Callers(4, pcs[:])
+	runtime.Callers(2, pcs[:])
 	pc = pcs[0]
 	r := slog.NewRecord(time.Now(), 0, message, pc)
 	appendAttr(&line, "msg", r.Message)
