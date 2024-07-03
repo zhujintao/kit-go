@@ -48,14 +48,19 @@ func (l *loki) SetJobLabel(value string) *loki {
 	return l
 }
 
-func NewLoki(URL string) *loki {
+func NewLoki(URL ...string) *loki {
+
+	url := os.ExpandEnv("LOKI_PUSH_URL")
+	if len(URL) == 1 {
+		url = URL[0]
+	}
 	hostname, err := os.Hostname()
 	if err != nil {
 		fmt.Println(err)
 		return nil
 	}
 	l := &loki{
-		lokiURL: URL,
+		lokiURL: url,
 		labels:  make(model.LabelSet),
 	}
 	l.labels[model.LabelName("hostname")] = model.LabelValue(hostname)
