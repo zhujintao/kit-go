@@ -53,6 +53,12 @@ func (l *loki) SetJob(value string) *loki {
 	return l
 }
 
+// Set a Label SetNamespace
+func (l *loki) SetNamespaceEnv(name string) *loki {
+	l.labels[model.LabelName("namespace")] = model.LabelValue(os.ExpandEnv(fmt.Sprintf("${%s}", name)))
+	return l
+}
+
 // Add Labels AddLabels(k,v,k,v)
 func (l *loki) AddLabels(labels ...any) *loki {
 
