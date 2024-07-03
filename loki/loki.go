@@ -80,7 +80,7 @@ func NewLoki(URL string) *loki {
 	return l
 }
 
-func appendAttr(line *buffer.Buffer, k, v string) {
+func appendAttr(line buffer.Buffer, k, v string) {
 	line.WriteString(" ")
 	line.WriteString(k)
 	line.WriteByte('=')
@@ -93,20 +93,22 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	var pc uintptr
 	var pcs [1]uintptr
 
-	runtime.Callers(3, pcs[:])
+	runtime.Callers(4, pcs[:])
 	pc = pcs[0]
 	r := slog.NewRecord(time.Now(), 0, message, pc)
-	appendAttr(&line, "time", r.Time.Format("2006-01-02 15:04:05.000"))
-	appendAttr(&line, "level", level)
+
+	appendAttr(line, "time", r.Time.Format("2006-01-02 15:04:05.000"))
+	appendAttr(line, "level", level)
 	l.labels[model.LabelName("level")] = model.LabelValue(level)
 	fs := runtime.CallersFrames([]uintptr{r.PC})
 	f, _ := fs.Next()
-	appendAttr(&line, "source", fmt.Sprintf("%s:%d", path.Base(f.File), f.Line))
-	appendAttr(&line, "msg", r.Message)
+	source := fmt.Sprintf("%s:%d", path.Base(f.File), f.Line)
+	appendAttr(line, "source", source)
+	appendAttr(line, "msg", r.Message)
 	r.Add(args...)
 	r.Attrs(func(a slog.Attr) bool {
 		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
-		appendAttr(&line, a.Key, a.Value.String())
+		appendAttr(line, a.Key, a.Value.String())
 		return true
 	})
 	l.send(r.Time, line.String())
@@ -119,11 +121,11 @@ func (l *loki) Send(message string, args ...any) {
 	runtime.Callers(4, pcs[:])
 	pc = pcs[0]
 	r := slog.NewRecord(time.Now(), 0, message, pc)
-	appendAttr(&line, "msg", r.Message)
+	appendAttr(line, "msg", r.Message)
 	r.Add(args...)
 	r.Attrs(func(a slog.Attr) bool {
 		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
-		appendAttr(&line, a.Key, a.Value.String())
+		appendAttr(line, a.Key, a.Value.String())
 		return true
 	})
 
