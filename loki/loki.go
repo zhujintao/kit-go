@@ -27,6 +27,7 @@ const (
 	contentType  = "application/x-protobuf"
 	maxErrMsgLen = 1024
 	postPath     = "/loki/api/v1/push"
+	dateFormat   = "2006-01-02T15:04:05.000"
 )
 
 var userAgent = fmt.Sprintf("promtail/%s", build.Version)
@@ -131,12 +132,12 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	var line buffer.Buffer = *buffer.New()
 
 	r := slog.NewRecord(time.Now(), 0, message, 0)
-
-	appendAttr(&line, "time", r.Time.Format("2006-01-02 15:04:05.000"))
-	appendAttr(&line, "level", level)
+	line.WriteString(r.Time.Format(dateFormat))
+	line.WriteString(" ")
+	line.WriteString(level)
+	line.WriteString(" ")
+	line.WriteString(r.Message)
 	l.labels[model.LabelName("level")] = model.LabelValue(level)
-
-	appendAttr(&line, "msg", r.Message)
 
 	r.Add(args...)
 	r.Add(l.args...)
@@ -160,8 +161,8 @@ func (l *loki) Send(message string, args ...any) {
 	}
 	var line buffer.Buffer = *buffer.New()
 
-	r := slog.NewRecord(time.Now(), 0, message, 0)
-	appendAttr(&line, "msg", r.Message)
+	r := slog.NewRecord(time.Now().Local(), 0, message, 0)
+	line.WriteString(message)
 	r.Add(args...)
 	r.Add(l.args...)
 	r.Attrs(func(a slog.Attr) bool {
