@@ -114,6 +114,20 @@ func NewLoki(URL ...string) *loki {
 		fmt.Println(err)
 	}
 	l.client.Timeout = l.timeout
+
+	exLbs := os.ExpandEnv("${LOKI_EXTERNAL_LABELS}")
+	if exLbs != "" {
+
+		lbs := strings.Split(exLbs, ",")
+		for _, lb := range lbs {
+
+			label := strings.Split(lb, "=")
+			if len(label) == 2 {
+				l.labels[model.LabelName(label[0])] = model.LabelValue(fmt.Sprintf("%v", label[1]))
+			}
+		}
+	}
+
 	return l
 }
 
