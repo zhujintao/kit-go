@@ -140,7 +140,7 @@ func appendAttr(line *buffer.Buffer, k, v string) {
 
 func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	if l.lokiURL == postPath {
-	 	fmt.Println("LOKI_PUSH_URL must be defined, LOKI_EXTERNAL_LABELS add external lable")
+		fmt.Println("LOKI_PUSH_URL must be defined, LOKI_EXTERNAL_LABELS add external lable.")
 		return
 	}
 	var line buffer.Buffer = *buffer.New()
