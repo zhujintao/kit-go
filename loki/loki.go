@@ -168,6 +168,32 @@ func (l *loki) Log(t time.Time, level string, message string, args ...any) {
 	l.send(r.Time, line.String())
 }
 
+func (l *loki) LogFile(level string, message string, args ...any) {
+
+	var line buffer.Buffer = *buffer.New()
+
+	r := slog.NewRecord(time.Now(), 0, message, 0)
+	line.WriteString(r.Time.Format(dateFormat))
+	line.WriteString(" ")
+	line.WriteString(level)
+	line.WriteString(" ")
+	line.WriteString(r.Message)
+	l.labels[model.LabelName("level")] = model.LabelValue(level)
+
+	r.Add(args...)
+	r.Add(l.args...)
+
+	r.Attrs(func(a slog.Attr) bool {
+		l.labels[model.LabelName(a.Key)] = model.LabelValue(a.Value.String())
+		if strings.ToLower(a.Key) == "job" {
+			return true
+		}
+		appendAttr(&line, a.Key, a.Value.String())
+		return true
+	})
+
+}
+
 func (l *loki) Send(message string, args ...any) {
 	if l.lokiURL == postPath {
 		fmt.Println("LOKI_PUSH_URL must be defined")
