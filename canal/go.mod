@@ -8,7 +8,7 @@ require (
 	github.com/juju/errors v1.0.0
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20231124053542-069631e2ecfe
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726
-	github.com/zhujintao/kit-go/mysql v0.0.0-00010101000000-000000000000
+
 )
 
 require (
@@ -23,6 +23,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07 // indirect
+	github.com/zhujintao/kit-go/mysql v0.0.0-20241015094810-4e63404e1d8d // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
