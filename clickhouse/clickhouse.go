@@ -104,6 +104,18 @@ func ParserMysqlCreateTableSql(sql string) string {
 		s.WritePlain(" ")
 
 		dataType := col.dataType
+
+		if col.precision != types.UnspecifiedLength {
+
+			dataType = fmt.Sprintf("%s(%d", dataType, col.precision)
+			//ctx.WritePlainf("(%d", precision)
+			if col.scale != types.UnspecifiedLength {
+				dataType = fmt.Sprintf("%s,%d", dataType, col.scale)
+				//ctx.WritePlainf(",%d", scale)
+			}
+			dataType = dataType + ")"
+		}
+
 		if col.nullable {
 			dataType = "Nullable(" + dataType + ")"
 		}
@@ -207,8 +219,8 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 
 	sign_colName := getUniqueColumnName(table.colpos, "_sign")
 	version_colName := getUniqueColumnName(table.colpos, "_version")
-	table.columns = append(table.columns, &column{name: sign_colName, dataType: "Int8 MATERIALIZED 1"})
-	table.columns = append(table.columns, &column{name: version_colName, dataType: "UInt64 MATERIALIZED 1"})
+	table.columns = append(table.columns, &column{name: sign_colName, dataType: "Int8 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
+	table.columns = append(table.columns, &column{name: version_colName, dataType: "UInt64 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
 	table.versionName = version_colName
 }
 
@@ -317,6 +329,7 @@ func getPartitionPolicy(table *table) {
 		if !col.primaryKey {
 			continue
 		}
+
 		switch col.dataType {
 		case "Date32", "DateTime":
 			table.partition = fmt.Sprintf("toYYYYMM(%s)", col.name)
