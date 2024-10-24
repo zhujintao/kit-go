@@ -36,6 +36,7 @@ var mappedTypes map[string]string = map[string]string{
 	"char":      "String",
 	"text":      "String",
 	"decimal":   "Decimal",
+	"enum":      "Enum8",
 }
 
 type column struct {
@@ -66,6 +67,7 @@ func ParserMysqlCreateTableSql(sql string) string {
 	pr := parser.New()
 	stmt, err := pr.ParseOneStmt(sql, "", "")
 	if err != nil {
+		fmt.Println(err)
 		return ""
 	}
 	st := stmt.(*ast.CreateTableStmt)
@@ -141,19 +143,21 @@ func ParserMysqlCreateTableSql(sql string) string {
 	}
 
 	s.WriteKeyWord("ORDER BY ")
-
-	if len(t.orders) > 0 {
+	if len(t.orders) == 0 {
+		s.WritePlain("tuple()")
+	}
+	if len(t.orders) == 1 {
+		s.WritePlain(t.orders[0])
+	}
+	if len(t.orders) > 1 {
 		s.WritePlain("(")
 		for i, col := range t.orders {
-
 			if i > 0 {
 				s.WritePlainf(",\n")
 			}
 			s.WritePlain(col)
 		}
 		s.WritePlain(")")
-	} else {
-		s.WritePlain("tuple()")
 	}
 	return sb.String()
 }
@@ -185,13 +189,24 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 
 		switch ft.GetType() {
 		case mysql.TypeEnum, mysql.TypeSet:
-			fmt.Println("(")
+
+			var sb strings.Builder
+
 			for i, e := range ft.GetElems() {
 				if i != 0 {
+					sb.WriteString(",")
 				}
-				fmt.Println(e)
+
+				sb.WriteString(fmt.Sprintf("'%s'=%d", e, i+1))
+
 			}
-			fmt.Println(")")
+			enum := "Enum8"
+			if len(ft.GetElems()) > 127 {
+				enum = "Enum16"
+			}
+
+			col.dataType = enum + "(" + sb.String() + ")"
+
 		case mysql.TypeTimestamp, mysql.TypeDatetime, mysql.TypeDuration:
 			col.precision = ft.GetDecimal()
 		case mysql.TypeUnspecified, mysql.TypeFloat, mysql.TypeDouble, mysql.TypeNewDecimal:
@@ -212,6 +227,8 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 				col.increment = true
 			case ast.ColumnOptionComment:
 				col.comment = opt.Expr.(ast.ValueExpr).GetString()
+			case ast.ColumnOptionPrimaryKey:
+				col.primaryKey = true
 			}
 		}
 		table.columns[i] = col
@@ -287,31 +304,66 @@ func getStorage(table *table, opts []*ast.TableOption) {
 
 func getOrderByPolicy(table *table) {
 
-	var orderbycol []string
+	var orderbycols []string
 
-	var incrementKey []string
-	var nonincrementKey []string
+	var incrementKeys []string
+	var nonincrementKeys []string
+	var primaryKeys []*column
 
 	for _, col := range table.columns {
 		colName := col.name
 		if col.nullable {
 			colName = "assumeNotNull(" + colName + ")"
 		}
-		if col.primaryKey || col.index || col.unique {
+
+		if col.primaryKey {
+			primaryKeys = append(primaryKeys, col)
+		}
+
+		if col.index || col.unique {
+
 			if col.increment {
 
 				if col.nullable {
 				}
-				incrementKey = append(incrementKey, colName)
+				incrementKeys = append(incrementKeys, colName)
 			} else {
-				nonincrementKey = append(nonincrementKey, colName)
+				nonincrementKeys = append(nonincrementKeys, colName)
 			}
 		}
 	}
 
-	orderbycol = append(orderbycol, nonincrementKey...)
-	orderbycol = append(orderbycol, incrementKey...)
-	table.orders = append(table.orders, orderbycol...)
+	if len(nonincrementKeys) == 0 && len(incrementKeys) == 0 {
+
+		if len(primaryKeys) == 1 {
+
+			table.orders = append(table.orders, "tuple("+primaryKeys[0].name+")")
+
+		} else {
+
+			for _, col := range primaryKeys {
+
+				if col.increment {
+
+					if col.nullable {
+					}
+					incrementKeys = append(incrementKeys, col.name)
+				} else {
+					nonincrementKeys = append(nonincrementKeys, col.name)
+				}
+
+			}
+
+		}
+
+	}
+
+	if len(primaryKeys) == 0 {
+		panic("lost primary key")
+	}
+	orderbycols = append(orderbycols, nonincrementKeys...)
+	orderbycols = append(orderbycols, incrementKeys...)
+	table.orders = append(table.orders, orderbycols...)
 
 }
 func getPartitionPolicy(table *table) {
