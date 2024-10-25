@@ -18,7 +18,7 @@ func (p *parser) IsDDlAction() bool {
 	return p.ddlction != ""
 }
 
-func ParseSql(stmt ast.StmtNode) {
+func ParseSql(stmt ast.StmtNode) *parser {
 
 	p := &parser{}
 
@@ -50,7 +50,7 @@ func ParseSql(stmt ast.StmtNode) {
 		p.ddlction = "DropDatabaseStmt"
 		p.Tables = append(p.Tables, &table{Schema: st.Name.O})
 	}
-
+	return p
 }
 
 type node struct {

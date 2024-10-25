@@ -61,6 +61,8 @@ github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcU
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/zhujintao/kit-go/mysql v0.0.0-20241015094810-4e63404e1d8d h1:Uxb9bLLncOZ7/eZ+LxpyuD8Kz9Nlv4X8nRvLjWKEar8=
 github.com/zhujintao/kit-go/mysql v0.0.0-20241015094810-4e63404e1d8d/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
+github.com/zhujintao/kit-go/mysql v0.0.0-20241025133248-8e3772752ef4 h1:Rw77f9Lh9KwKaw7PqN0jRHUA6Aj+ZReonvN3HEqs4nc=
+github.com/zhujintao/kit-go/mysql v0.0.0-20241025133248-8e3772752ef4/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
