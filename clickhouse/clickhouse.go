@@ -9,6 +9,7 @@ import (
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/format"
+	"github.com/pingcap/tidb/pkg/parser/model"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 	"github.com/pingcap/tidb/pkg/parser/types"
 	_ "github.com/pingcap/tidb/pkg/types/parser_driver"
@@ -48,6 +49,7 @@ type column struct {
 	primaryKey, index, unique bool
 	precision                 int
 	scale                     int
+	relativeColumn            string
 }
 
 type table struct {
@@ -60,29 +62,164 @@ type table struct {
 	versionName string
 	orders      []string
 	partition   string
+	dmlAction   ast.AlterTableType
 }
 
-func ParserMysqlCreateTableSql(sql string) string {
-
+// parser ddl, dml
+func ParserMysqlSQL(sql string) string {
 	pr := parser.New()
 	stmt, err := pr.ParseOneStmt(sql, "", "")
 	if err != nil {
 		fmt.Println(err)
 		return ""
 	}
-	st := stmt.(*ast.CreateTableStmt)
-
 	t := &table{}
-	getName(t, st.Table)
-	getColumns(t, st.Cols)
-	getConstraint(t, st.Constraints)
-	getStorage(t, st.Options)
-	getOrderByPolicy((t))
-	getPartitionPolicy(t)
-
 	var sb strings.Builder
 	s := format.NewRestoreCtx(format.DefaultRestoreFlags, &sb)
 
+	switch st := stmt.(type) {
+	case *ast.CreateDatabaseStmt:
+		s.WriteKeyWord("CREATE DATABASE ")
+		s.WriteName(st.Name.O)
+
+	case *ast.DropDatabaseStmt:
+
+		s.WriteKeyWord("DROP DATABASE ")
+		s.WriteName(st.Name.O)
+
+	case *ast.CreateTableStmt:
+		getName(t, st.Table)
+		getColumns(t, st.Cols)
+		addVersionColumn(t)
+		getConstraint(t, st.Constraints)
+		getStorage(t, st.Options)
+		getOrderByPolicy((t))
+		getPartitionPolicy(t)
+		buildCreateTable(t, st, s)
+	case *ast.DropTableStmt:
+		if st.TemporaryKeyword != ast.TemporaryNone {
+			break
+		}
+		drop := "DROP TABLE "
+		if st.IsView {
+			drop = "DROP VIEW "
+		}
+		s.WriteKeyWord(drop)
+		for i, table := range st.Tables {
+
+			if i != 0 {
+				s.WritePlain(", ")
+			}
+			getName(t, table)
+			if t.schema != "" {
+				s.WriteName(t.schema)
+				s.WritePlain(".")
+			}
+			s.WriteName(t.name)
+		}
+
+	case *ast.AlterTableStmt:
+		getName(t, st.Table)
+		getAlterTableSpec(t, st.Specs)
+		s.WriteKeyWord("ALTER TABLE ")
+		buildAlterTable(t, s)
+
+	}
+	return sb.String()
+}
+
+func buildAlterTable(t *table, s *format.RestoreCtx) {
+
+	if t.dmlAction == ast.AlterTableAddColumns {
+
+		if t.schema != "" {
+			s.WriteName(t.schema)
+			s.WritePlain(".")
+		}
+		s.WriteName(t.name)
+		s.WritePlain(" ")
+
+		for i, col := range t.columns {
+
+			if i > 0 {
+				s.WritePlain(", ")
+			}
+
+			s.WriteKeyWord("ADD COLUMN ")
+			s.WriteName(col.name)
+			s.WritePlain(" ")
+			dataType := col.dataType
+			if col.nullable {
+				dataType = "Nullable(" + dataType + ")"
+			}
+			s.WritePlain(dataType)
+
+			if col.comment != "" {
+				s.WritePlain(" ")
+				s.WriteKeyWord("COMMENT ")
+				s.WriteString(col.comment)
+			}
+			if col.relativeColumn != "" {
+				s.WritePlain(" ")
+				s.WritePlain(col.relativeColumn)
+			}
+		}
+	}
+
+	if t.dmlAction == ast.AlterTableModifyColumn {
+
+		if t.schema != "" {
+			s.WriteName(t.schema)
+			s.WritePlain(".")
+		}
+		s.WriteName(t.name)
+		s.WritePlain(" ")
+		s.WriteKeyWord("MODIFY COLUMN ")
+		col := t.columns[0]
+		fmt.Println(col)
+		colBuild(col, s)
+	}
+
+}
+
+func colBuild(col *column, s *format.RestoreCtx) {
+
+	s.WriteName(col.name)
+	s.WritePlain(" ")
+
+	if col.dataType != "" {
+
+		dataType := col.dataType
+		if col.precision != types.UnspecifiedLength {
+
+			dataType = fmt.Sprintf("%s(%d", dataType, col.precision)
+
+			if col.scale != types.UnspecifiedLength {
+				dataType = fmt.Sprintf("%s,%d", dataType, col.scale)
+
+			}
+			dataType = dataType + ")"
+		}
+
+		if col.nullable {
+			dataType = "Nullable(" + dataType + ")"
+		}
+		s.WritePlain(dataType)
+	}
+	if col.comment != "" {
+		s.WritePlain(" ")
+		s.WriteKeyWord("COMMENT ")
+		s.WriteString(col.comment)
+	}
+
+	if col.relativeColumn != "" {
+		s.WritePlain(" ")
+		s.WritePlain(col.relativeColumn)
+	}
+
+}
+
+func buildCreateTable(t *table, st *ast.CreateTableStmt, s *format.RestoreCtx) {
 	s.WriteKeyWord("CREATE TABLE ")
 	if st.IfNotExists {
 		s.WriteKeyWord("IF NOT EXISTS ")
@@ -101,32 +238,7 @@ func ParserMysqlCreateTableSql(sql string) string {
 		if i > 0 {
 			s.WritePlainf(",\n")
 		}
-		s.WritePlain("  ")
-		s.WriteName(col.name)
-		s.WritePlain(" ")
-
-		dataType := col.dataType
-
-		if col.precision != types.UnspecifiedLength {
-
-			dataType = fmt.Sprintf("%s(%d", dataType, col.precision)
-			//ctx.WritePlainf("(%d", precision)
-			if col.scale != types.UnspecifiedLength {
-				dataType = fmt.Sprintf("%s,%d", dataType, col.scale)
-				//ctx.WritePlainf(",%d", scale)
-			}
-			dataType = dataType + ")"
-		}
-
-		if col.nullable {
-			dataType = "Nullable(" + dataType + ")"
-		}
-		s.WritePlain(dataType)
-		s.WritePlain(" ")
-		if col.comment != "" {
-			s.WriteKeyWord("COMMENT ")
-			s.WriteString(col.comment)
-		}
+		colBuild(col, s)
 
 	}
 	s.WritePlain(",\n")
@@ -159,7 +271,6 @@ func ParserMysqlCreateTableSql(sql string) string {
 		}
 		s.WritePlain(")")
 	}
-	return sb.String()
 }
 
 func getName(table *table, t *ast.TableName) {
@@ -181,42 +292,38 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 			nullable: true,
 		}
 
-		ft := c.Tp
+		if c.Tp != nil {
 
-		col.dataType = mappedTypes[types.TypeToStr(ft.GetType(), ft.GetCharset())]
-		col.precision = types.UnspecifiedLength
-		col.scale = types.UnspecifiedLength
+			ft := c.Tp
+			col.dataType = mappedTypes[types.TypeToStr(ft.GetType(), ft.GetCharset())]
+			col.precision = types.UnspecifiedLength
+			col.scale = types.UnspecifiedLength
 
-		switch ft.GetType() {
-		case mysql.TypeEnum, mysql.TypeSet:
-
-			var sb strings.Builder
-
-			for i, e := range ft.GetElems() {
-				if i != 0 {
-					sb.WriteString(",")
+			switch ft.GetType() {
+			case mysql.TypeEnum:
+				var sb strings.Builder
+				for i, e := range ft.GetElems() {
+					if i != 0 {
+						sb.WriteString(",")
+					}
+					sb.WriteString(fmt.Sprintf("'%s'=%d", e, i+1))
 				}
+				enum := "Enum8"
+				if len(ft.GetElems()) > 127 {
+					enum = "Enum16"
+				}
+				col.dataType = enum + "(" + sb.String() + ")"
 
-				sb.WriteString(fmt.Sprintf("'%s'=%d", e, i+1))
+			case mysql.TypeTimestamp, mysql.TypeDatetime, mysql.TypeDuration:
+				col.precision = ft.GetDecimal()
+			case mysql.TypeUnspecified, mysql.TypeFloat, mysql.TypeDouble, mysql.TypeNewDecimal:
+				col.precision = ft.GetFlen()
+				col.scale = ft.GetDecimal()
+			default:
+				//precision = ft.GetFlen()
 
 			}
-			enum := "Enum8"
-			if len(ft.GetElems()) > 127 {
-				enum = "Enum16"
-			}
-
-			col.dataType = enum + "(" + sb.String() + ")"
-
-		case mysql.TypeTimestamp, mysql.TypeDatetime, mysql.TypeDuration:
-			col.precision = ft.GetDecimal()
-		case mysql.TypeUnspecified, mysql.TypeFloat, mysql.TypeDouble, mysql.TypeNewDecimal:
-			col.precision = ft.GetFlen()
-			col.scale = ft.GetDecimal()
-		default:
-			//precision = ft.GetFlen()
-
 		}
-
 		for _, opt := range c.Options {
 
 			switch opt.Tp {
@@ -234,6 +341,9 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 		table.columns[i] = col
 	}
 
+}
+
+func addVersionColumn(table *table) {
 	sign_colName := getUniqueColumnName(table.colpos, "_sign")
 	version_colName := getUniqueColumnName(table.colpos, "_version")
 	table.columns = append(table.columns, &column{name: sign_colName, dataType: "Int8 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
@@ -402,4 +512,58 @@ func getSizwOfValueInMemory(i interface{}) int {
 
 	return int(unsafe.Sizeof(i))
 
+}
+
+func getRelativePosition(table *table, columns []*ast.ColumnDef, position *ast.ColumnPosition) {
+	if position != nil {
+		col := findColumn(table, columns[0].Name.Name.O)
+		var relativeColumn string
+		switch position.Tp {
+		case ast.ColumnPositionAfter:
+			relativeColumn = "AFTER " + position.RelativeColumn.Name.O
+		case ast.ColumnPositionFirst:
+			relativeColumn = "FIRST"
+		}
+		col.relativeColumn = relativeColumn
+	}
+}
+func getAlterTableSpec(t *table, specs []*ast.AlterTableSpec) {
+	t.colpos = map[string]int{}
+	for i, spec := range specs {
+		table := &table{}
+
+		switch spec.Tp {
+		case ast.AlterTableAddColumns:
+
+			getColumns(table, spec.NewColumns)
+			t.colpos[spec.NewColumns[0].Name.Name.O] = i
+			getRelativePosition(table, spec.NewColumns, spec.Position)
+			t.dmlAction = ast.AlterTableAddColumns
+
+		case ast.AlterTableModifyColumn:
+
+			getColumns(table, spec.NewColumns)
+			t.colpos[spec.NewColumns[0].Name.Name.O] = i
+			getRelativePosition(table, spec.NewColumns, spec.Position)
+			t.dmlAction = ast.AlterTableModifyColumn
+
+		case ast.AlterTableDropColumn:
+
+			var cols []*ast.ColumnDef
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
+			getColumns(table, cols)
+			t.dmlAction = ast.AlterTableDropColumn
+
+		case ast.AlterTableRenameColumn:
+			var cols []*ast.ColumnDef
+
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.NewColumnName.Name.O)}})
+			getColumns(table, cols)
+			t.dmlAction = ast.AlterTableRenameColumn
+
+		}
+		t.columns = append(t.columns, table.columns...)
+
+	}
 }
