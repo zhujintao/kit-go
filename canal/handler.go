@@ -37,18 +37,21 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 	}
 
 	sql := string(queryEvent.Query)
-
+	schema := string(queryEvent.Schema)
 	pr := parser.New()
-	stmt, _, err := pr.Parse(sql, "", "")
+	stmt, err := pr.ParseOneStmt(sql, "", "")
 	if err != nil {
 		fmt.Println(err)
 		return err
 
 	}
+	t := mysql_.ParseSql(schema, stmt)
 
-	node := mysql_.ParseStmt(stmt[0])
+	if !t.IsDDlAction() || !h.syncer.canal.CheckTableMatch("") {
+		return nil
+	}
 
-	return h.syncer.SetHandlerOnDDL(node, string(queryEvent.Schema), sql)
+	return h.syncer.SetHandlerOnDDL(schema, sql)
 
 }
 

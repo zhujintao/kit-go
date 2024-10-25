@@ -18,37 +18,58 @@ func (p *parser) IsDDlAction() bool {
 	return p.ddlction != ""
 }
 
-func ParseSql(stmt ast.StmtNode) *parser {
+func ParseSql(schema string, stmt ast.StmtNode) *parser {
 
 	p := &parser{}
-
+	schemaName := schema
 	switch st := stmt.(type) {
 	case *ast.RenameTableStmt:
 		p.ddlction = "RenameTableStmt"
 		for _, t := range st.TableToTables {
-			p.Tables = append(p.Tables, &table{Name: t.OldTable.Name.O, Schema: t.OldTable.Schema.O})
+			if t.OldTable.Schema.O != "" {
+				schemaName = t.OldTable.Schema.O
+			}
+			p.Tables = append(p.Tables, &table{Name: t.OldTable.Name.O, Schema: schemaName})
 		}
 	case *ast.AlterTableStmt:
 		p.ddlction = "AlterTableStmt"
-		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: st.Table.Schema.O})
+		if st.Table.Schema.O != "" {
+			schemaName = st.Table.Schema.O
+		}
+		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 	case *ast.DropTableStmt:
 		p.ddlction = "DropTableStmt"
 		for _, t := range st.Tables {
-			p.Tables = append(p.Tables, &table{Name: t.Name.O, Schema: t.Schema.O})
+			if t.Schema.O != "" {
+				schemaName = t.Schema.O
+			}
+			p.Tables = append(p.Tables, &table{Name: t.Name.O, Schema: schemaName})
 		}
 	case *ast.CreateTableStmt:
 		p.ddlction = "CreateTableStmt"
-		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: st.Table.Schema.O})
+		if st.Table.Schema.O != "" {
+			schemaName = st.Table.Schema.O
+		}
+		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 	case *ast.TruncateTableStmt:
 		p.ddlction = "TruncateTableStmt"
-		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: st.Table.Schema.O})
+		if st.Table.Schema.O != "" {
+			schemaName = st.Table.Schema.O
+		}
+		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 
 	case *ast.CreateDatabaseStmt:
 		p.ddlction = "CreateDatabaseStmt"
-		p.Tables = append(p.Tables, &table{Schema: st.Name.O})
+		if st.Name.O != "" {
+			schemaName = st.Name.O
+		}
+		p.Tables = append(p.Tables, &table{Schema: schemaName})
 	case *ast.DropDatabaseStmt:
 		p.ddlction = "DropDatabaseStmt"
-		p.Tables = append(p.Tables, &table{Schema: st.Name.O})
+		if st.Name.O != "" {
+			schemaName = st.Name.O
+		}
+		p.Tables = append(p.Tables, &table{Schema: schemaName})
 	}
 	return p
 }
