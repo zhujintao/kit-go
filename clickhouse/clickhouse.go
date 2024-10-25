@@ -176,7 +176,7 @@ func buildAlterTable(t *table, s *format.RestoreCtx) {
 		s.WritePlain(" ")
 		s.WriteKeyWord("MODIFY COLUMN ")
 		col := t.columns[0]
-		fmt.Println(col)
+
 		colBuild(col, s)
 	}
 
