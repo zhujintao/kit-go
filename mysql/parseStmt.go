@@ -1,6 +1,57 @@
 package mysql
 
-import "github.com/pingcap/tidb/pkg/parser/ast"
+import (
+	"github.com/pingcap/tidb/pkg/parser/ast"
+)
+
+type table struct {
+	Schema string
+	Name   string
+}
+
+type parser struct {
+	Tables   []*table
+	ddlction string
+}
+
+func (p *parser) IsDDlAction() bool {
+	return p.ddlction != ""
+}
+
+func ParseSql(stmt ast.StmtNode) {
+
+	p := &parser{}
+
+	switch st := stmt.(type) {
+	case *ast.RenameTableStmt:
+		p.ddlction = "RenameTableStmt"
+		for _, t := range st.TableToTables {
+			p.Tables = append(p.Tables, &table{Name: t.OldTable.Name.O, Schema: t.OldTable.Schema.O})
+		}
+	case *ast.AlterTableStmt:
+		p.ddlction = "AlterTableStmt"
+		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: st.Table.Schema.O})
+	case *ast.DropTableStmt:
+		p.ddlction = "DropTableStmt"
+		for _, t := range st.Tables {
+			p.Tables = append(p.Tables, &table{Name: t.Name.O, Schema: t.Schema.O})
+		}
+	case *ast.CreateTableStmt:
+		p.ddlction = "CreateTableStmt"
+		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: st.Table.Schema.O})
+	case *ast.TruncateTableStmt:
+		p.ddlction = "TruncateTableStmt"
+		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: st.Table.Schema.O})
+
+	case *ast.CreateDatabaseStmt:
+		p.ddlction = "CreateDatabaseStmt"
+		p.Tables = append(p.Tables, &table{Schema: st.Name.O})
+	case *ast.DropDatabaseStmt:
+		p.ddlction = "DropDatabaseStmt"
+		p.Tables = append(p.Tables, &table{Schema: st.Name.O})
+	}
+
+}
 
 type node struct {
 	Db    string

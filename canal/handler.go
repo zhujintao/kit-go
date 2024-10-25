@@ -31,7 +31,7 @@ func (h *defaultHandler) OnTableChanged(header *replication.EventHeader, schema 
 
 func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Position, queryEvent *replication.QueryEvent) error {
 
-	h.syncer.syncCh <- gsetSaver{queryEvent.GSet.String(), true}
+	//h.syncer.syncCh <- gsetSaver{queryEvent.GSet.String(), true}
 	if h.syncer.SetHandlerOnDDL == nil {
 		return h.syncer.ctx.Err()
 	}
@@ -42,8 +42,12 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 	stmt, _, err := pr.Parse(sql, "", "")
 	if err != nil {
 		fmt.Println(err)
+		return err
+
 	}
+
 	node := mysql_.ParseStmt(stmt[0])
+
 	return h.syncer.SetHandlerOnDDL(node, string(queryEvent.Schema), sql)
 
 }
