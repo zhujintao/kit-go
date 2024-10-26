@@ -39,7 +39,7 @@ func ParseMatchTable(s *[]string, schema, table string) {
 
 // delete source code 90~93
 //
-// includeTables, excludeTables use ParseMatchTable method
+// includeTables, excludeTables use ParseMatchTable method, db.table db.table$ db.table1 db.table2
 // masterInfoPath (*option default is current path)
 func NewCanal(ctx context.Context, cancel context.CancelFunc, id, addr, user, passwrod string, includeTables, excludeTables []string, masterInfoPath ...string) *syncer {
 
@@ -59,6 +59,7 @@ func NewCanal(ctx context.Context, cancel context.CancelFunc, id, addr, user, pa
 
 	s := &syncer{canal: c}
 	s.syncCh = make(chan interface{}, 4096)
+
 	s.ctx = ctx
 	s.cancel = cancel
 

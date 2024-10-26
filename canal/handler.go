@@ -31,35 +31,35 @@ func (h *defaultHandler) OnTableChanged(header *replication.EventHeader, schema 
 
 func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Position, queryEvent *replication.QueryEvent) error {
 
-	//h.syncer.syncCh <- gsetSaver{queryEvent.GSet.String(), true}
+	if queryEvent.GSet != nil {
+		h.syncer.syncCh <- gsetSaver{queryEvent.GSet.String(), true}
+	}
+
 	if h.syncer.SetHandlerOnDDL == nil {
 		return h.syncer.ctx.Err()
 	}
 
 	sql := string(queryEvent.Query)
 	schema := string(queryEvent.Schema)
+
 	pr := parser.New()
 	stmt, err := pr.ParseOneStmt(sql, "", "")
 	if err != nil {
-		fmt.Println(err)
+		h.syncer.Close()
 		return err
 	}
 	t := mysql_.ParseSql(schema, stmt)
-
 	if !t.IsDDlAction() {
 		return nil
 	}
 	for _, table := range t.Tables {
-
 		key := table.Schema + "." + table.Name
 		if h.syncer.canal.CheckTableMatch(key) {
-
-			err := h.syncer.SetHandlerOnDDL(schema, sql)
+			err := h.syncer.SetHandlerOnDDL(table.Schema, sql)
 			if err != nil {
-				fmt.Println(err)
+				h.syncer.Close()
 				return err
 			}
-
 		}
 
 	}

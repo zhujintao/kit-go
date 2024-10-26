@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"unsafe"
 
@@ -26,6 +27,7 @@ var mappedTypes map[string]string = map[string]string{
 	"float":     "Float32",
 	"double":    "Float64",
 	"timestamp": "DateTime",
+	"datetime":  "DateTime",
 	"boolean":   "Bool",
 	"bit":       "UInt64",
 	"set":       "UInt64",
@@ -36,6 +38,7 @@ var mappedTypes map[string]string = map[string]string{
 	"varchar":   "String",
 	"char":      "String",
 	"text":      "String",
+	"blob":      "String",
 	"decimal":   "Decimal",
 	"enum":      "Enum8",
 }
@@ -338,6 +341,7 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 				col.primaryKey = true
 			}
 		}
+
 		table.columns[i] = col
 	}
 
@@ -375,20 +379,25 @@ func findColumn(table *table, colName string) *column {
 	}
 	return nil
 }
+
 func getConstraint(table *table, constraints []*ast.Constraint) {
 
 	for _, c := range constraints {
 
 		for _, key := range c.Keys {
+
 			colName := key.Column.Name.String()
 			col := findColumn(table, colName)
+
 			if col == nil {
 				continue
 			}
 			switch c.Tp {
 			case ast.ConstraintPrimaryKey:
+
 				col.primaryKey = true
 				col.nullable = false
+
 			case ast.ConstraintKey, ast.ConstraintIndex:
 				col.index = true
 			case ast.ConstraintUniqKey:
@@ -414,66 +423,51 @@ func getStorage(table *table, opts []*ast.TableOption) {
 
 func getOrderByPolicy(table *table) {
 
-	var orderbycols []string
-
-	var incrementKeys []string
-	var nonincrementKeys []string
-	var primaryKeys []*column
+	var orders []string
+	var backs []string
+	var fronts []string
+	var pkname string
+	var pknum int
 
 	for _, col := range table.columns {
+
 		colName := col.name
+		if slices.Contains(orders, colName) {
+			continue
+		}
+
+		if !col.primaryKey && !col.index && !col.unique {
+			continue
+		}
+
 		if col.nullable {
 			colName = "assumeNotNull(" + colName + ")"
 		}
 
 		if col.primaryKey {
-			primaryKeys = append(primaryKeys, col)
+			pkname = colName
+			pknum++
 		}
 
-		if col.index || col.unique {
-
-			if col.increment {
-
-				if col.nullable {
-				}
-				incrementKeys = append(incrementKeys, colName)
-			} else {
-				nonincrementKeys = append(nonincrementKeys, colName)
-			}
-		}
-	}
-
-	if len(nonincrementKeys) == 0 && len(incrementKeys) == 0 {
-
-		if len(primaryKeys) == 1 {
-
-			table.orders = append(table.orders, "tuple("+primaryKeys[0].name+")")
-
+		if col.increment {
+			backs = append(backs, colName)
 		} else {
-
-			for _, col := range primaryKeys {
-
-				if col.increment {
-
-					if col.nullable {
-					}
-					incrementKeys = append(incrementKeys, col.name)
-				} else {
-					nonincrementKeys = append(nonincrementKeys, col.name)
-				}
-
-			}
-
+			fronts = append(fronts, colName)
 		}
+
+		orders = append(orders, colName)
 
 	}
 
-	if len(primaryKeys) == 0 {
+	if pknum == 0 {
 		panic("lost primary key")
 	}
-	orderbycols = append(orderbycols, nonincrementKeys...)
-	orderbycols = append(orderbycols, incrementKeys...)
-	table.orders = append(table.orders, orderbycols...)
+
+	table.orders = append(table.orders, fronts...)
+	table.orders = append(table.orders, backs...)
+	if pknum == 1 && len(orders) == 1 {
+		table.orders = []string{"tuple(" + pkname + ")"}
+	}
 
 }
 func getPartitionPolicy(table *table) {
