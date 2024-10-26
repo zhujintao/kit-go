@@ -63,13 +63,13 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 		if st.Name.O != "" {
 			schemaName = st.Name.O
 		}
-		p.Tables = append(p.Tables, &table{Schema: schemaName})
+		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	case *ast.DropDatabaseStmt:
 		p.ddlction = "DropDatabaseStmt"
 		if st.Name.O != "" {
 			schemaName = st.Name.O
 		}
-		p.Tables = append(p.Tables, &table{Schema: schemaName})
+		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	}
 	return p
 }
