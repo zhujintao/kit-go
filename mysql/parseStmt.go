@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"slices"
+
 	"github.com/pingcap/tidb/pkg/parser/ast"
 )
 
@@ -10,12 +12,30 @@ type table struct {
 }
 
 type parser struct {
-	Tables   []*table
-	ddlction string
+	Tables []*table
+
+	ddlaction []string
 }
 
-func (p *parser) IsDDlAction() bool {
-	return p.ddlction != ""
+func (p *parser) IsAction() bool {
+	return len(p.ddlaction) != 0
+}
+
+func (p *parser) GetAction() []string {
+	return p.ddlaction
+}
+
+func (p *parser) IsVaild(action ...string) bool {
+	var ok bool
+
+	if len(action) == 0 {
+		ok = len(p.ddlaction) != 0
+	}
+	for _, a := range action {
+		ok = slices.Contains(p.ddlaction, a)
+	}
+	return ok
+
 }
 
 func ParseSql(schema string, stmt ast.StmtNode) *parser {
@@ -24,7 +44,7 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 	schemaName := schema
 	switch st := stmt.(type) {
 	case *ast.RenameTableStmt:
-		p.ddlction = "RenameTableStmt"
+		p.ddlaction = []string{"RenameTable"}
 		for _, t := range st.TableToTables {
 			if t.OldTable.Schema.O != "" {
 				schemaName = t.OldTable.Schema.O
@@ -32,120 +52,61 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 			p.Tables = append(p.Tables, &table{Name: t.OldTable.Name.O, Schema: schemaName})
 		}
 	case *ast.AlterTableStmt:
-		p.ddlction = "AlterTableStmt"
+
+		p.ddlaction = []string{"AlterTable"}
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
+		for _, spec := range st.Specs {
+			switch spec.Tp {
+			case ast.AlterTableDropIndex:
+				p.ddlaction = append(p.ddlaction, "DropIndex")
+			case ast.AlterTableAddColumns:
+				p.ddlaction = append(p.ddlaction, "AddColumn")
+			case ast.AlterTableDropColumn:
+				p.ddlaction = append(p.ddlaction, "DropColumn")
+			}
+		}
 	case *ast.DropTableStmt:
-		p.ddlction = "DropTableStmt"
+		p.ddlaction = []string{"DropTable"}
+
 		for _, t := range st.Tables {
 			if t.Schema.O != "" {
 				schemaName = t.Schema.O
 			}
 			p.Tables = append(p.Tables, &table{Name: t.Name.O, Schema: schemaName})
 		}
+
 	case *ast.CreateTableStmt:
-		p.ddlction = "CreateTableStmt"
+		p.ddlaction = []string{"CreateTable"}
+
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 	case *ast.TruncateTableStmt:
-		p.ddlction = "TruncateTableStmt"
+		p.ddlaction = []string{"TruncateTable"}
+
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 
 	case *ast.CreateDatabaseStmt:
-		p.ddlction = "CreateDatabaseStmt"
+		p.ddlaction = []string{"CreateDatabase"}
+
 		if st.Name.O != "" {
 			schemaName = st.Name.O
 		}
 		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	case *ast.DropDatabaseStmt:
-		p.ddlction = "DropDatabaseStmt"
+		p.ddlaction = []string{"DropDatabase"}
+
 		if st.Name.O != "" {
 			schemaName = st.Name.O
 		}
 		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	}
 	return p
-}
-
-type node struct {
-	Db    string
-	Table string
-}
-
-type Nodes struct {
-	StmtType string
-	Nodes    []*node
-}
-
-func ParseStmt(stmt ast.StmtNode) (ns *Nodes) {
-
-	switch t := stmt.(type) {
-	case *ast.RenameTableStmt:
-		var nodes []*node
-		for _, tableInfo := range t.TableToTables {
-			n := &node{
-				Db:    tableInfo.OldTable.Schema.String(),
-				Table: tableInfo.OldTable.Name.String(),
-			}
-			nodes = append(nodes, n)
-		}
-		ns = &Nodes{
-			StmtType: "RenameTable",
-			Nodes:    nodes,
-		}
-	case *ast.AlterTableStmt:
-
-		n := &node{
-
-			Db:    t.Table.Schema.String(),
-			Table: t.Table.Name.String(),
-		}
-		ns = &Nodes{
-			StmtType: "AlterTable",
-			Nodes:    []*node{n},
-		}
-	case *ast.DropTableStmt:
-		var nodes []*node
-		for _, table := range t.Tables {
-			n := &node{
-
-				Db:    table.Schema.String(),
-				Table: table.Name.String(),
-			}
-			nodes = append(nodes, n)
-		}
-		ns = &Nodes{
-			StmtType: "DropTable",
-			Nodes:    nodes,
-		}
-	case *ast.CreateTableStmt:
-		n := &node{
-			Db:    t.Table.Schema.String(),
-			Table: t.Table.Name.String(),
-		}
-
-		ns = &Nodes{
-			StmtType: "CreateTable",
-			Nodes:    []*node{n},
-		}
-	case *ast.TruncateTableStmt:
-		n := &node{
-
-			Db:    t.Table.Schema.String(),
-			Table: t.Table.Name.String(),
-		}
-		ns = &Nodes{
-			StmtType: "TruncateTable",
-			Nodes:    []*node{n},
-		}
-
-	}
-	return ns
 }

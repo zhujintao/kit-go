@@ -111,7 +111,7 @@ func ParserMysqlSQL(sql string) string {
 		for i, table := range st.Tables {
 
 			if i != 0 {
-				s.WritePlain(", ")
+				s.WritePlain(",")
 			}
 			getName(t, table)
 			if t.schema != "" {
@@ -125,62 +125,93 @@ func ParserMysqlSQL(sql string) string {
 		getName(t, st.Table)
 		getAlterTableSpec(t, st.Specs)
 		s.WriteKeyWord("ALTER TABLE ")
-		buildAlterTable(t, s)
 
+		switch t.dmlAction {
+		case ast.AlterTableAddColumns:
+			AddColumns(t, s)
+		case ast.AlterTableModifyColumn:
+			modifyColumn(t, s)
+		case ast.AlterTableDropIndex:
+			dropIndex(t, s)
+		}
+
+	case *ast.TruncateTableStmt:
+
+		getName(t, st.Table)
+		s.WriteKeyWord("TRUNCATE TABLE ")
+		if t.schema != "" {
+			s.WriteName(t.schema)
+			s.WritePlain(".")
+		}
+		s.WriteName(t.name)
 	}
 	return sb.String()
 }
+func AddColumns(t *table, s *format.RestoreCtx) {
+	if t.schema != "" {
+		s.WriteName(t.schema)
+		s.WritePlain(".")
+	}
+	s.WriteName(t.name)
+	s.WritePlain(" ")
 
-func buildAlterTable(t *table, s *format.RestoreCtx) {
+	for i, col := range t.columns {
 
-	if t.dmlAction == ast.AlterTableAddColumns {
-
-		if t.schema != "" {
-			s.WriteName(t.schema)
-			s.WritePlain(".")
+		if i > 0 {
+			s.WritePlain(", ")
 		}
-		s.WriteName(t.name)
+
+		s.WriteKeyWord("ADD COLUMN ")
+		s.WriteName(col.name)
 		s.WritePlain(" ")
+		dataType := col.dataType
+		if col.nullable {
+			dataType = "Nullable(" + dataType + ")"
+		}
+		s.WritePlain(dataType)
 
-		for i, col := range t.columns {
-
-			if i > 0 {
-				s.WritePlain(", ")
-			}
-
-			s.WriteKeyWord("ADD COLUMN ")
-			s.WriteName(col.name)
+		if col.comment != "" {
 			s.WritePlain(" ")
-			dataType := col.dataType
-			if col.nullable {
-				dataType = "Nullable(" + dataType + ")"
-			}
-			s.WritePlain(dataType)
-
-			if col.comment != "" {
-				s.WritePlain(" ")
-				s.WriteKeyWord("COMMENT ")
-				s.WriteString(col.comment)
-			}
-			if col.relativeColumn != "" {
-				s.WritePlain(" ")
-				s.WritePlain(col.relativeColumn)
-			}
+			s.WriteKeyWord("COMMENT ")
+			s.WriteString(col.comment)
+		}
+		if col.relativeColumn != "" {
+			s.WritePlain(" ")
+			s.WritePlain(col.relativeColumn)
 		}
 	}
+}
 
-	if t.dmlAction == ast.AlterTableModifyColumn {
+func modifyColumn(t *table, s *format.RestoreCtx) {
 
-		if t.schema != "" {
-			s.WriteName(t.schema)
-			s.WritePlain(".")
+	if t.schema != "" {
+		s.WriteName(t.schema)
+		s.WritePlain(".")
+	}
+	s.WriteName(t.name)
+	s.WritePlain(" ")
+	s.WriteKeyWord("MODIFY COLUMN ")
+	col := t.columns[0]
+
+	colBuild(col, s)
+}
+
+func dropIndex(t *table, s *format.RestoreCtx) {
+
+	if t.schema != "" {
+		s.WriteName(t.schema)
+		s.WritePlain(".")
+	}
+	s.WriteName(t.name)
+	s.WritePlain(" ")
+
+	for i, col := range t.columns {
+		if i > 0 {
+			s.WritePlain(", ")
 		}
-		s.WriteName(t.name)
-		s.WritePlain(" ")
-		s.WriteKeyWord("MODIFY COLUMN ")
-		col := t.columns[0]
 
-		colBuild(col, s)
+		s.WriteKeyWord("DROP INDEX ")
+		s.WriteName(col.name)
 	}
 
 }
@@ -556,7 +587,14 @@ func getAlterTableSpec(t *table, specs []*ast.AlterTableSpec) {
 			getColumns(table, cols)
 			t.dmlAction = ast.AlterTableRenameColumn
 
+		case ast.AlterTableDropIndex:
+
+			getColumns(table, []*ast.ColumnDef{{Name: &ast.ColumnName{Name: model.NewCIStr(spec.Name)}}})
+			t.colpos[spec.Name] = i
+			t.dmlAction = ast.AlterTableDropIndex
+
 		}
+
 		t.columns = append(t.columns, table.columns...)
 
 	}
