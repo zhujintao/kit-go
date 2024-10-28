@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/canal"
-	cmysql "github.com/go-mysql-org/go-mysql/mysql"
-	mysql "github.com/zhujintao/kit-go/mysql"
+	"github.com/go-mysql-org/go-mysql/mysql"
+	gomysql "github.com/zhujintao/kit-go/mysql"
 )
 
 const (
@@ -89,13 +89,13 @@ func (s *syncer) GetMasterInfo(path, id string) *masterInfo {
 	}
 	return masterinfo
 }
-func (s *syncer) Execute(cmd string, args ...interface{}) (rr *cmysql.Result, err error) {
+func (s *syncer) Execute(cmd string, args ...interface{}) (rr *mysql.Result, err error) {
 	return s.canal.Execute(cmd, args...)
 }
-func (s *syncer) ExecuteSelectStreaming(cmd string, perRowCallback func(row []mysql.FieldValue) error, perResultCallback func(result *cmysql.Result) error) (err error) {
+func (s *syncer) ExecuteSelectStreaming(cmd string, perRowCallback func(row []gomysql.FieldValue) error, perResultCallback func(result *mysql.Result) error) (err error) {
 	return s.canal.ExecuteSelectStreaming(cmd, perRowCallback, perResultCallback)
 }
-func (s *syncer) GetMasterGTIDSet() (cmysql.GTIDSet, error) {
+func (s *syncer) GetMasterGTIDSet() (mysql.GTIDSet, error) {
 	return s.canal.GetMasterGTIDSet()
 }
 func (s *syncer) SetMasterInfo(gset string) {
@@ -112,7 +112,7 @@ func (s *syncer) Run() error {
 
 	s.wg.Add(1)
 	go s.writeMasterInfo()
-	gset, _ := cmysql.ParseMysqlGTIDSet(s.master.GtidSet)
+	gset, _ := mysql.ParseMysqlGTIDSet(s.master.GtidSet)
 	if err := s.canal.StartFromGTID(gset); err != nil {
 		return err
 	}
