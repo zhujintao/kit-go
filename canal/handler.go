@@ -7,7 +7,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 	"github.com/pingcap/tidb/pkg/parser"
-	mysql_ "github.com/zhujintao/kit-go/mysql"
+	gomysql "github.com/zhujintao/kit-go/mysql"
 )
 
 type defaultHandler struct {
@@ -48,7 +48,7 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 		h.syncer.Close()
 		return err
 	}
-	t := mysql_.ParseSql(schema, stmt)
+	t := gomysql.ParseSql(schema, stmt)
 	if !t.IsAction() {
 		return nil
 	}

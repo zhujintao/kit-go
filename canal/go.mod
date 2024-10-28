@@ -23,7 +23,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07 // indirect
-	github.com/zhujintao/kit-go/mysql v0.0.0-20241026032145-ee4dbf9aa09a // indirect
+	github.com/zhujintao/kit-go/mysql v0.0.0-20241028101225-ece832762def // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
