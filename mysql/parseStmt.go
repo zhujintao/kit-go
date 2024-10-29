@@ -21,6 +21,14 @@ func (p *parser) IsAction() bool {
 	return len(p.ddlaction) != 0
 }
 
+// Action:
+//
+// RenameTable
+// AlterTable
+// AddColumn DropColumn DropIndex DropTable CreateTable
+// TruncateTable
+// CreateDatabase
+// DropDatabase
 func (p *parser) GetAction() []string {
 	return p.ddlaction
 }
