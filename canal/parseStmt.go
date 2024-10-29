@@ -1,4 +1,4 @@
-package mysql
+package canal
 
 import (
 	"slices"
@@ -11,13 +11,12 @@ type table struct {
 	Name   string
 }
 
-type parser struct {
-	Tables []*table
-
+type parserx struct {
+	Tables    []*table
 	ddlaction []DdlAction
 }
 
-func (p *parser) IsAction() bool {
+func (p *parserx) IsAction() bool {
 	return len(p.ddlaction) != 0
 }
 
@@ -36,11 +35,11 @@ const (
 	DropIndex
 )
 
-func (p *parser) GetAction() []DdlAction {
+func (p *parserx) GetAction() []DdlAction {
 	return p.ddlaction
 }
 
-func (p *parser) IsVaild(action ...DdlAction) bool {
+func (p *parserx) IsVaild(action ...DdlAction) bool {
 	var ok bool
 
 	if len(action) == 0 {
@@ -53,9 +52,9 @@ func (p *parser) IsVaild(action ...DdlAction) bool {
 
 }
 
-func ParseSql(schema string, stmt ast.StmtNode) *parser {
+func parseSql(schema string, stmt ast.StmtNode) *parserx {
 
-	p := &parser{}
+	p := &parserx{}
 	schemaName := schema
 	switch st := stmt.(type) {
 	case *ast.RenameTableStmt:
