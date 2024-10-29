@@ -49,7 +49,7 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 	}
 	t := parseSql(schema, stmt)
 	if !t.IsAction() {
-		return nil
+		return fmt.Errorf("ddl action unknown")
 	}
 
 	for _, table := range t.Tables {

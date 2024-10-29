@@ -107,5 +107,6 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		}
 		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	}
+
 	return p
 }
