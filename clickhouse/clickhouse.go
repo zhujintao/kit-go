@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/format"
@@ -66,6 +67,13 @@ type table struct {
 	orders      []string
 	partition   string
 	dmlAction   ast.AlterTableType
+}
+
+func IsErrCode(err error, code ...int32) bool {
+	errCoe := err.(*proto.Exception).Code
+
+	return slices.Contains(code, errCoe)
+
 }
 
 // parser ddl, dml
