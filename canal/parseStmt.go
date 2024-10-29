@@ -11,29 +11,29 @@ type table struct {
 
 type parserx struct {
 	Tables    []*table
-	ddlaction Action
+	ddlaction DDlAction
 }
 
-type Action string
+type DDlAction string
 
 const (
-	CreateDatabase Action = "CreateDatabase"
-	DropDatabase   Action = "DropDatabase"
-	CreateTable    Action = "CreateTable"
-	DropTable      Action = "DropTable"
-	RenameTable    Action = "RenameTable"
-	TruncateTable  Action = "TruncateTable"
-	AlterTable     Action = "AlterTable"
-	AddColumn      Action = "AddColumn"
-	DropColumn     Action = "DropColumn"
-	DropIndex      Action = "DropIndex"
+	CreateDatabase DDlAction = "CreateDatabase"
+	DropDatabase   DDlAction = "DropDatabase"
+	CreateTable    DDlAction = "CreateTable"
+	DropTable      DDlAction = "DropTable"
+	RenameTable    DDlAction = "RenameTable"
+	TruncateTable  DDlAction = "TruncateTable"
+	AlterTable     DDlAction = "AlterTable"
+	AddColumn      DDlAction = "AddColumn"
+	DropColumn     DDlAction = "DropColumn"
+	DropIndex      DDlAction = "DropIndex"
 )
 
 func (p *parserx) IsAction() bool {
 	return p.ddlaction != ""
 }
 
-func (p *parserx) GetAction() Action {
+func (p *parserx) GetAction() DDlAction {
 	return p.ddlaction
 }
 
