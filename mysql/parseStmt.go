@@ -14,26 +14,33 @@ type table struct {
 type parser struct {
 	Tables []*table
 
-	ddlaction []string
+	ddlaction []DdlAction
 }
 
 func (p *parser) IsAction() bool {
 	return len(p.ddlaction) != 0
 }
 
-// Action:
-//
-// RenameTable
-// AlterTable
-// AddColumn DropColumn DropIndex DropTable CreateTable
-// TruncateTable
-// CreateDatabase
-// DropDatabase
-func (p *parser) GetAction() []string {
+type DdlAction int
+
+const (
+	CreateDatabase DdlAction = iota + 1
+	DropDatabase
+	CreateTable
+	DropTable
+	RenameTable
+	TruncateTable
+	AlterTable
+	AddColumn
+	DropColumn
+	DropIndex
+)
+
+func (p *parser) GetAction() []DdlAction {
 	return p.ddlaction
 }
 
-func (p *parser) IsVaild(action ...string) bool {
+func (p *parser) IsVaild(action ...DdlAction) bool {
 	var ok bool
 
 	if len(action) == 0 {
@@ -52,7 +59,7 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 	schemaName := schema
 	switch st := stmt.(type) {
 	case *ast.RenameTableStmt:
-		p.ddlaction = []string{"RenameTable"}
+		p.ddlaction = []DdlAction{RenameTable}
 		for _, t := range st.TableToTables {
 			if t.OldTable.Schema.O != "" {
 				schemaName = t.OldTable.Schema.O
@@ -61,7 +68,7 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 		}
 	case *ast.AlterTableStmt:
 
-		p.ddlaction = []string{"AlterTable"}
+		p.ddlaction = []DdlAction{AlterTable}
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
@@ -69,15 +76,15 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 		for _, spec := range st.Specs {
 			switch spec.Tp {
 			case ast.AlterTableDropIndex:
-				p.ddlaction = append(p.ddlaction, "DropIndex")
+				p.ddlaction = append(p.ddlaction, DropIndex)
 			case ast.AlterTableAddColumns:
-				p.ddlaction = append(p.ddlaction, "AddColumn")
+				p.ddlaction = append(p.ddlaction, AddColumn)
 			case ast.AlterTableDropColumn:
-				p.ddlaction = append(p.ddlaction, "DropColumn")
+				p.ddlaction = append(p.ddlaction, DropColumn)
 			}
 		}
 	case *ast.DropTableStmt:
-		p.ddlaction = []string{"DropTable"}
+		p.ddlaction = []DdlAction{DropTable}
 
 		for _, t := range st.Tables {
 			if t.Schema.O != "" {
@@ -87,14 +94,14 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 		}
 
 	case *ast.CreateTableStmt:
-		p.ddlaction = []string{"CreateTable"}
+		p.ddlaction = []DdlAction{CreateTable}
 
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 	case *ast.TruncateTableStmt:
-		p.ddlaction = []string{"TruncateTable"}
+		p.ddlaction = []DdlAction{TruncateTable}
 
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
@@ -102,14 +109,14 @@ func ParseSql(schema string, stmt ast.StmtNode) *parser {
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 
 	case *ast.CreateDatabaseStmt:
-		p.ddlaction = []string{"CreateDatabase"}
+		p.ddlaction = []DdlAction{CreateDatabase}
 
 		if st.Name.O != "" {
 			schemaName = st.Name.O
 		}
 		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	case *ast.DropDatabaseStmt:
-		p.ddlaction = []string{"DropDatabase"}
+		p.ddlaction = []DdlAction{DropDatabase}
 
 		if st.Name.O != "" {
 			schemaName = st.Name.O
