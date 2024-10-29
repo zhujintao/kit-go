@@ -22,7 +22,7 @@ type RowsEvent = canal.RowsEvent
 
 type syncer struct {
 	SetHandlerOnRow func(e *RowsEvent) error
-	SetHandlerOnDDL func(action []DdlAction, schema, sql string) error
+	SetHandlerOnDDL func(action Action, schema, sql string) error
 
 	syncCh chan interface{}
 	ctx    context.Context

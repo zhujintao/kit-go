@@ -1,8 +1,6 @@
 package canal
 
 import (
-	"slices"
-
 	"github.com/pingcap/tidb/pkg/parser/ast"
 )
 
@@ -13,43 +11,30 @@ type table struct {
 
 type parserx struct {
 	Tables    []*table
-	ddlaction []DdlAction
+	ddlaction Action
 }
 
-func (p *parserx) IsAction() bool {
-	return len(p.ddlaction) != 0
-}
-
-type DdlAction int
+type Action string
 
 const (
-	CreateDatabase DdlAction = iota + 1
-	DropDatabase
-	CreateTable
-	DropTable
-	RenameTable
-	TruncateTable
-	AlterTable
-	AddColumn
-	DropColumn
-	DropIndex
+	CreateDatabase Action = "CreateDatabase"
+	DropDatabase   Action = "DropDatabase"
+	CreateTable    Action = "CreateTable"
+	DropTable      Action = "DropTable"
+	RenameTable    Action = "RenameTable"
+	TruncateTable  Action = "TruncateTable"
+	AlterTable     Action = "AlterTable"
+	AddColumn      Action = "AddColumn"
+	DropColumn     Action = "DropColumn"
+	DropIndex      Action = "DropIndex"
 )
 
-func (p *parserx) GetAction() []DdlAction {
-	return p.ddlaction
+func (p *parserx) IsAction() bool {
+	return p.ddlaction != ""
 }
 
-func (p *parserx) IsVaild(action ...DdlAction) bool {
-	var ok bool
-
-	if len(action) == 0 {
-		ok = len(p.ddlaction) != 0
-	}
-	for _, a := range action {
-		ok = slices.Contains(p.ddlaction, a)
-	}
-	return ok
-
+func (p *parserx) GetAction() Action {
+	return p.ddlaction
 }
 
 func parseSql(schema string, stmt ast.StmtNode) *parserx {
@@ -58,7 +43,7 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 	schemaName := schema
 	switch st := stmt.(type) {
 	case *ast.RenameTableStmt:
-		p.ddlaction = []DdlAction{RenameTable}
+		p.ddlaction = RenameTable
 		for _, t := range st.TableToTables {
 			if t.OldTable.Schema.O != "" {
 				schemaName = t.OldTable.Schema.O
@@ -67,7 +52,7 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		}
 	case *ast.AlterTableStmt:
 
-		p.ddlaction = []DdlAction{AlterTable}
+		p.ddlaction = AlterTable
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
@@ -75,15 +60,15 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		for _, spec := range st.Specs {
 			switch spec.Tp {
 			case ast.AlterTableDropIndex:
-				p.ddlaction = append(p.ddlaction, DropIndex)
+				p.ddlaction = DropIndex
 			case ast.AlterTableAddColumns:
-				p.ddlaction = append(p.ddlaction, AddColumn)
+				p.ddlaction = AddColumn
 			case ast.AlterTableDropColumn:
-				p.ddlaction = append(p.ddlaction, DropColumn)
+				p.ddlaction = DropColumn
 			}
 		}
 	case *ast.DropTableStmt:
-		p.ddlaction = []DdlAction{DropTable}
+		p.ddlaction = DropTable
 
 		for _, t := range st.Tables {
 			if t.Schema.O != "" {
@@ -93,14 +78,14 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		}
 
 	case *ast.CreateTableStmt:
-		p.ddlaction = []DdlAction{CreateTable}
+		p.ddlaction = CreateTable
 
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 	case *ast.TruncateTableStmt:
-		p.ddlaction = []DdlAction{TruncateTable}
+		p.ddlaction = TruncateTable
 
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
@@ -108,14 +93,14 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 
 	case *ast.CreateDatabaseStmt:
-		p.ddlaction = []DdlAction{CreateDatabase}
+		p.ddlaction = CreateDatabase
 
 		if st.Name.O != "" {
 			schemaName = st.Name.O
 		}
 		p.Tables = append(p.Tables, &table{Schema: schemaName, Name: "*"})
 	case *ast.DropDatabaseStmt:
-		p.ddlaction = []DdlAction{DropDatabase}
+		p.ddlaction = DropDatabase
 
 		if st.Name.O != "" {
 			schemaName = st.Name.O
