@@ -21,7 +21,13 @@ const (
 type RowsEvent = canal.RowsEvent
 
 type syncer struct {
+	// e.RowsEvent
+	//
+	// beforeRows := e.Rows[0]
+	//
+	// afterRows := e.Rows[1]
 	SetHandlerOnRow func(e *RowsEvent) error
+
 	SetHandlerOnDDL func(action DDlAction, schema, sql string) error
 
 	syncCh chan interface{}
@@ -170,4 +176,18 @@ func (s *syncer) writeMasterInfo() {
 
 	}
 
+}
+
+func DefaultOnRow(e *RowsEvent) error {
+	switch e.Action {
+	case InsertAction:
+
+	case UpdateAction:
+	case DeleteAction:
+
+	default:
+		return fmt.Errorf("invalid rows action %s", e.Action)
+	}
+
+	return nil
 }
