@@ -188,7 +188,7 @@ func DefaultOnRow(e *RowsEvent) error {
 		s, v := dml.Update(e.Table, e.Rows[0], e.Rows[1])
 		fmt.Println(s, v)
 	case DeleteAction:
-		s, v := dml.Delete(e.Table, e.Rows[0], e.Rows[1])
+		s, v := dml.Delete(e.Table, e.Rows[0], e.Rows[0])
 		fmt.Println(s, v)
 	default:
 		return fmt.Errorf("invalid rows action %s", e.Action)

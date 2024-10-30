@@ -10,7 +10,7 @@ import (
 type DmlInterface interface {
 	Insert(tableInfo *TableInfo, row []interface{}) (string, []interface{})
 	Update(tableInfo *TableInfo, beforeRows, afterRows []interface{}) (string, []interface{})
-	Delete(tableInfo *TableInfo, beforeRows, afterRows []interface{}) (string, []interface{})
+	Delete(tableInfo *TableInfo, row []interface{}) (string, []interface{})
 }
 
 type DmlDefault struct {
@@ -56,9 +56,9 @@ func (d *DmlDefault) Update(tableInfo *TableInfo, beforeRows, afterRows []interf
 //
 // beforeRows := e.Rows[0]
 //
-// afterRows := e.Rows[1]
-func (d *DmlDefault) Delete(tableInfo *TableInfo, beforeRows, afterRows []interface{}) (string, []interface{}) {
-	return updateAndDelete("delete", tableInfo, beforeRows, afterRows)
+// afterRows := e.Rows[0]
+func (d *DmlDefault) Delete(tableInfo *TableInfo, row []interface{}) (string, []interface{}) {
+	return updateAndDelete("delete", tableInfo, row, row)
 
 }
 func updateAndDelete(action string, tableInfo *TableInfo, beforeRows, afterRows []interface{}) (string, []interface{}) {
