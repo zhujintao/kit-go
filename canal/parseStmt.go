@@ -27,9 +27,11 @@ const (
 	AddColumn      DDlAction = "AddColumn"
 	DropColumn     DDlAction = "DropColumn"
 	DropIndex      DDlAction = "DropIndex"
+	ChangeColumn   DDlAction = "ChangeColumn"
 )
 
 func (p *parserx) IsAction() bool {
+
 	return p.ddlaction != ""
 }
 
@@ -52,7 +54,7 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		}
 	case *ast.AlterTableStmt:
 
-		p.ddlaction = AlterTable
+		//p.ddlaction = AlterTable
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
@@ -65,6 +67,9 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 				p.ddlaction = AddColumn
 			case ast.AlterTableDropColumn:
 				p.ddlaction = DropColumn
+			case ast.AlterTableModifyColumn:
+			case ast.AlterTableChangeColumn:
+				p.ddlaction = ChangeColumn
 			}
 		}
 	case *ast.DropTableStmt:

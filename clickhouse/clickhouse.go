@@ -66,7 +66,7 @@ type table struct {
 	versionName string
 	orders      []string
 	partition   string
-	dmlAction   ast.AlterTableType
+	ddlAction   ast.AlterTableType
 }
 
 func IsErrCode(err error, code ...int32) bool {
@@ -77,12 +77,11 @@ func IsErrCode(err error, code ...int32) bool {
 }
 
 // parser ddl, dml
-func ParserMysqlSQL(sql string) string {
+func ParserMysqlSQL(sql string) (string, error) {
 	pr := parser.New()
 	stmt, err := pr.ParseOneStmt(sql, "", "")
 	if err != nil {
-		fmt.Println(err)
-		return ""
+		return "", err
 	}
 	t := &table{}
 	var sb strings.Builder
@@ -129,20 +128,6 @@ func ParserMysqlSQL(sql string) string {
 			s.WriteName(t.name)
 		}
 
-	case *ast.AlterTableStmt:
-		getName(t, st.Table)
-		getAlterTableSpec(t, st.Specs)
-		s.WriteKeyWord("ALTER TABLE ")
-
-		switch t.dmlAction {
-		case ast.AlterTableAddColumns:
-			AddColumns(t, s)
-		case ast.AlterTableModifyColumn:
-			modifyColumn(t, s)
-		case ast.AlterTableDropIndex:
-			dropIndex(t, s)
-		}
-
 	case *ast.TruncateTableStmt:
 
 		getName(t, st.Table)
@@ -152,9 +137,100 @@ func ParserMysqlSQL(sql string) string {
 			s.WritePlain(".")
 		}
 		s.WriteName(t.name)
+
+	case *ast.AlterTableStmt:
+
+		getName(t, st.Table)
+
+		err := getAlterTableSpec(t, st.Specs)
+		if err != nil {
+			return "", err
+		}
+
+		s.WriteKeyWord("ALTER TABLE ")
+		switch t.ddlAction {
+		case ast.AlterTableAddColumns:
+			AddColumns(t, s)
+		case ast.AlterTableModifyColumn:
+			modifyColumn(t, s)
+		case ast.AlterTableDropIndex:
+			dropIndex(t, s)
+		case ast.AlterTableDropColumn:
+			dropColumn(t, s)
+
+		}
+	default:
+		return "", fmt.Errorf("ddl action unknown")
 	}
-	return sb.String()
+
+	return sb.String(), nil
 }
+
+func getAlterTableSpec(t *table, specs []*ast.AlterTableSpec) error {
+	t.colpos = map[string]int{}
+	for i, spec := range specs {
+		table := &table{}
+
+		switch spec.Tp {
+		case ast.AlterTableAddColumns:
+			colName := spec.NewColumns[0].Name.Name.O
+			getColumns(table, spec.NewColumns)
+			t.colpos[colName] = i
+			getRelativePosition(table, colName, spec.Position)
+			t.ddlAction = ast.AlterTableAddColumns
+
+		case ast.AlterTableModifyColumn:
+			colName := spec.NewColumns[0].Name.Name.O
+			getColumns(table, spec.NewColumns)
+			t.colpos[colName] = i
+			getRelativePosition(table, colName, spec.Position)
+			t.ddlAction = ast.AlterTableModifyColumn
+
+		case ast.AlterTableChangeColumn:
+
+			return fmt.Errorf("[CHANGE COLUMN] not supported")
+
+		//	var cols []*ast.ColumnDef
+
+		//	colName := spec.NewColumns[0].Name.Name.O
+		//	cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}}, spec.NewColumns[0])
+		//	t.colpos[colName] = 1
+		//	getColumns(table, cols)
+		//	getRelativePosition(table, colName, spec.Position)
+		//	t.ddlAction = ast.AlterTableChangeColumn
+
+		case ast.AlterTableDropColumn:
+
+			var cols []*ast.ColumnDef
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
+			getColumns(table, cols)
+			t.ddlAction = ast.AlterTableDropColumn
+
+		case ast.AlterTableRenameColumn:
+			var cols []*ast.ColumnDef
+
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.NewColumnName.Name.O)}})
+			getColumns(table, cols)
+			t.ddlAction = ast.AlterTableRenameColumn
+
+		case ast.AlterTableDropIndex:
+
+			getColumns(table, []*ast.ColumnDef{{Name: &ast.ColumnName{Name: model.NewCIStr(spec.Name)}}})
+			t.colpos[spec.Name] = i
+			t.ddlAction = ast.AlterTableDropIndex
+
+		default:
+			return fmt.Errorf("ddl action unknown")
+		}
+
+		t.columns = append(t.columns, table.columns...)
+
+	}
+	return nil
+
+}
+
 func AddColumns(t *table, s *format.RestoreCtx) {
 	if t.schema != "" {
 		s.WriteName(t.schema)
@@ -190,6 +266,25 @@ func AddColumns(t *table, s *format.RestoreCtx) {
 	}
 }
 
+func dropColumn(t *table, s *format.RestoreCtx) {
+	if t.schema != "" {
+		s.WriteName(t.schema)
+		s.WritePlain(".")
+	}
+	s.WriteName(t.name)
+	s.WritePlain(" ")
+
+	for i, col := range t.columns {
+		if i > 0 {
+			s.WritePlain(", ")
+		}
+
+		s.WriteKeyWord("DROP COLUMN ")
+		s.WriteName(col.name)
+	}
+
+}
+
 func modifyColumn(t *table, s *format.RestoreCtx) {
 
 	if t.schema != "" {
@@ -221,6 +316,23 @@ func dropIndex(t *table, s *format.RestoreCtx) {
 		s.WriteKeyWord("DROP INDEX ")
 		s.WriteName(col.name)
 	}
+
+}
+
+// not implemented
+func changeColumn(t *table, s *format.RestoreCtx) {
+	if t.schema != "" {
+		s.WriteName(t.schema)
+		s.WritePlain(".")
+	}
+	s.WriteName(t.name)
+	s.WritePlain(" ")
+
+	s.WriteKeyWord("CHANGE COLUMN ")
+	s.WriteName(t.columns[0].name)
+	s.WritePlain(" ")
+
+	colBuild(t.columns[1], s)
 
 }
 
@@ -509,6 +621,7 @@ func getOrderByPolicy(table *table) {
 	}
 
 }
+
 func getPartitionPolicy(table *table) {
 
 	numbers_partition := func(column_name string, type_max_size uint) string {
@@ -547,9 +660,9 @@ func getSizwOfValueInMemory(i interface{}) int {
 
 }
 
-func getRelativePosition(table *table, columns []*ast.ColumnDef, position *ast.ColumnPosition) {
+func getRelativePosition(table *table, colName string, position *ast.ColumnPosition) {
 	if position != nil {
-		col := findColumn(table, columns[0].Name.Name.O)
+		col := findColumn(table, colName)
 		var relativeColumn string
 		switch position.Tp {
 		case ast.ColumnPositionAfter:
@@ -558,52 +671,5 @@ func getRelativePosition(table *table, columns []*ast.ColumnDef, position *ast.C
 			relativeColumn = "FIRST"
 		}
 		col.relativeColumn = relativeColumn
-	}
-}
-func getAlterTableSpec(t *table, specs []*ast.AlterTableSpec) {
-	t.colpos = map[string]int{}
-	for i, spec := range specs {
-		table := &table{}
-
-		switch spec.Tp {
-		case ast.AlterTableAddColumns:
-
-			getColumns(table, spec.NewColumns)
-			t.colpos[spec.NewColumns[0].Name.Name.O] = i
-			getRelativePosition(table, spec.NewColumns, spec.Position)
-			t.dmlAction = ast.AlterTableAddColumns
-
-		case ast.AlterTableModifyColumn:
-
-			getColumns(table, spec.NewColumns)
-			t.colpos[spec.NewColumns[0].Name.Name.O] = i
-			getRelativePosition(table, spec.NewColumns, spec.Position)
-			t.dmlAction = ast.AlterTableModifyColumn
-
-		case ast.AlterTableDropColumn:
-
-			var cols []*ast.ColumnDef
-			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
-			getColumns(table, cols)
-			t.dmlAction = ast.AlterTableDropColumn
-
-		case ast.AlterTableRenameColumn:
-			var cols []*ast.ColumnDef
-
-			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
-			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.NewColumnName.Name.O)}})
-			getColumns(table, cols)
-			t.dmlAction = ast.AlterTableRenameColumn
-
-		case ast.AlterTableDropIndex:
-
-			getColumns(table, []*ast.ColumnDef{{Name: &ast.ColumnName{Name: model.NewCIStr(spec.Name)}}})
-			t.colpos[spec.Name] = i
-			t.dmlAction = ast.AlterTableDropIndex
-
-		}
-
-		t.columns = append(t.columns, table.columns...)
-
 	}
 }
