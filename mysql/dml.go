@@ -36,7 +36,7 @@ func (d *DmlDefault) Insert(tableInfo *TableInfo, row []interface{}) (string, []
 		value[idx] = vstr
 
 	}
-
+	value = delNilI(value)
 	sql := "insert into " + db + "." + table + " ( " + strings.Join(delNilS(field), ",") + ") values ( " + strings.Join(delNilS(pos), ",") + ")"
 
 	return sql, value

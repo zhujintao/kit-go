@@ -8,7 +8,7 @@ require (
 	github.com/juju/errors v1.0.0
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20231124053542-069631e2ecfe
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726
-	github.com/zhujintao/kit-go/mysql v0.0.0-20241030110021-c6601898a46e
+	github.com/zhujintao/kit-go/mysql v0.0.0-20241030111325-e25a79b76e2e
 
 )
 
