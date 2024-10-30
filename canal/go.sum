@@ -83,6 +83,8 @@ github.com/zhujintao/kit-go/mysql v0.0.0-20241030111858-0d2ff0352a6b h1:HZpjxHnV
 github.com/zhujintao/kit-go/mysql v0.0.0-20241030111858-0d2ff0352a6b/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
 github.com/zhujintao/kit-go/mysql v0.0.0-20241030112123-f77e4642e5bb h1:oQY6Y+E8AYIS0jF3XyHAQatNJ9VELbIKFX/Ky1BIl5w=
 github.com/zhujintao/kit-go/mysql v0.0.0-20241030112123-f77e4642e5bb/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
+github.com/zhujintao/kit-go/mysql v0.0.0-20241030113604-3c6dbde0426a h1:CkJNk7leFNLxHX+f1tpMlE5VU+YzKSoi6r+OQ/MFgS0=
+github.com/zhujintao/kit-go/mysql v0.0.0-20241030113604-3c6dbde0426a/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
