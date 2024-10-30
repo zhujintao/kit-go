@@ -27,6 +27,9 @@ func (d *DmlDefault) Insert(tableInfo *TableInfo, row []interface{}) (string, []
 
 	for idx, v := range row {
 
+		if v == nil {
+			continue
+		}
 		field[idx] = tableInfo.Columns[idx].Name
 		pos[idx] = "?"
 		vstr := ValueToString(&tableInfo.Columns[idx], v)
