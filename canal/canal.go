@@ -179,12 +179,14 @@ func (s *syncer) writeMasterInfo() {
 }
 
 func DefaultOnRow(e *RowsEvent) error {
+	dml := &gomysql.DmlDefault{}
 	switch e.Action {
 	case InsertAction:
-
+		dml.Insert(e.Table, e.Rows[0])
 	case UpdateAction:
+		dml.Update(e.Table, e.Rows[0], e.Rows[1])
 	case DeleteAction:
-
+		dml.Delete(e.Table, e.Rows[0], e.Rows[1])
 	default:
 		return fmt.Errorf("invalid rows action %s", e.Action)
 	}

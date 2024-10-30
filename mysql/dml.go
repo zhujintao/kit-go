@@ -17,7 +17,7 @@ type DmlDefault struct {
 	DmlInterface
 }
 
-func (d *DmlDefault) Insert(client *Conn, tableInfo *TableInfo, row []interface{}) (string, []interface{}) {
+func (d *DmlDefault) Insert(tableInfo *TableInfo, row []interface{}) (string, []interface{}) {
 
 	db := tableInfo.Schema
 	table := tableInfo.Name
