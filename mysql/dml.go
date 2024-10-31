@@ -36,8 +36,8 @@ func (d *DmlDefault) Insert(tableInfo *TableInfo, row []interface{}) (string, []
 		value[idx] = vstr
 
 	}
-	value = delNilI(value)
-	sql := "insert into " + db + "." + table + " (" + strings.Join(delNilS(field), ",") + ") values ( " + strings.Join(delNilS(pos), ",") + ")"
+	value = DelNilI(value)
+	sql := "insert into " + db + "." + table + " (" + strings.Join(DelNilS(field), ",") + ") values ( " + strings.Join(DelNilS(pos), ",") + ")"
 
 	return sql, value
 
@@ -93,17 +93,17 @@ func updateAndDelete(action string, tableInfo *TableInfo, beforeRows, afterRows 
 
 	}
 
-	pkvalue = delNilI(pkvalue)
-	value = delNilI(value)
+	pkvalue = DelNilI(pkvalue)
+	value = DelNilI(value)
 	value = append(value, pkvalue...)
 
 	if action == "update" {
-		sql := "update " + db + "." + table + " set " + strings.Join(delNilS(pos), ",") + " where " + strings.Join(delNilS(pkpos), " AND ")
+		sql := "update " + db + "." + table + " set " + strings.Join(DelNilS(pos), ",") + " where " + strings.Join(DelNilS(pkpos), " AND ")
 		return sql, value
 	}
 
 	if action == "delete" {
-		sql := "DELETE FROM " + tableInfo.Schema + "." + tableInfo.Name + " WHERE " + strings.Join((delNilS(pkpos)), " AND ")
+		sql := "DELETE FROM " + tableInfo.Schema + "." + tableInfo.Name + " WHERE " + strings.Join((DelNilS(pkpos)), " AND ")
 
 		return sql, pkvalue
 	}
@@ -112,7 +112,7 @@ func updateAndDelete(action string, tableInfo *TableInfo, beforeRows, afterRows 
 
 }
 
-func delNilI(s []interface{}) []interface{} {
+func DelNilI(s []interface{}) []interface{} {
 	var n []interface{}
 	for _, s_ := range s {
 		if s_ == nil {
@@ -122,7 +122,8 @@ func delNilI(s []interface{}) []interface{} {
 	}
 	return n
 }
-func delNilS(s []string) []string {
+
+func DelNilS(s []string) []string {
 	var n []string
 	for _, s_ := range s {
 		if s_ == "" {
