@@ -41,7 +41,9 @@ func (c *Conn) GetTableInfo(db, table string) (*schema.Table, error) {
 func (c *Conn) Close() {
 	c.conn.Close()
 }
-
+func (c *Conn) Ping() error {
+	return c.conn.Ping()
+}
 func (c *Conn) connect(options ...client.Option) (*client.Conn, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, time.Second*10)
 	defer cancel()
