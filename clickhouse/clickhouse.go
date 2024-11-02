@@ -19,29 +19,30 @@ import (
 
 var mappedTypes map[string]string = map[string]string{
 
-	"tinyint":   "Int8",
-	"smallint":  "Int16",
-	"mediumint": "Int32",
-	"int":       "Int32",
-	"integer":   "Int32",
-	"bigint":    "Int64",
-	"float":     "Float32",
-	"double":    "Float64",
-	"timestamp": "DateTime",
-	"datetime":  "DateTime",
-	"boolean":   "Bool",
-	"bit":       "UInt64",
-	"set":       "UInt64",
-	"year":      "Uint16",
-	"Time":      "Int64",
-	"date":      "Date32",
-	"geometry":  "String",
-	"varchar":   "String",
-	"char":      "String",
-	"text":      "String",
-	"blob":      "String",
-	"decimal":   "Decimal",
-	"enum":      "Enum8",
+	"tinyint":    "Int8",
+	"smallint":   "Int16",
+	"mediumint":  "Int32",
+	"int":        "Int32",
+	"integer":    "Int32",
+	"bigint":     "Int64",
+	"float":      "Float32",
+	"double":     "Float64",
+	"timestamp":  "DateTime",
+	"datetime":   "DateTime",
+	"boolean":    "Bool",
+	"bit":        "UInt64",
+	"set":        "UInt64",
+	"year":       "Uint16",
+	"Time":       "Int64",
+	"date":       "Date32",
+	"geometry":   "String",
+	"varchar":    "String",
+	"char":       "String",
+	"text":       "String",
+	"blob":       "String",
+	"mediumtext": "String",
+	"decimal":    "Decimal",
+	"enum":       "Enum8",
 }
 
 type column struct {
@@ -69,7 +70,7 @@ type table struct {
 	ddlAction   ast.AlterTableType
 }
 
-func IsErrCode(err error, code ...int32) bool {
+func InErrCode(err error, code ...int32) bool {
 	errCoe := err.(*proto.Exception).Code
 
 	return slices.Contains(code, errCoe)
@@ -103,7 +104,10 @@ func ParserMysqlSQL(sql string) (string, error) {
 		addVersionColumn(t)
 		getConstraint(t, st.Constraints)
 		getStorage(t, st.Options)
-		getOrderByPolicy((t))
+		err := getOrderByPolicy((t))
+		if err != nil {
+			return "", err
+		}
 		getPartitionPolicy(t)
 		buildCreateTable(t, st, s)
 	case *ast.DropTableStmt:
@@ -396,10 +400,10 @@ func buildCreateTable(t *table, st *ast.CreateTableStmt, s *format.RestoreCtx) {
 
 	}
 	s.WritePlain(",\n")
-	s.WritePlainf("  INDEX %s %s TYPE minmax GRANULARITY 1", t.versionName, t.versionName)
+	s.WritePlainf("  INDEX %s %s TYPE minmax GRANULARITY 1", versionKey, versionKey)
 	s.WritePlainf("\n)\n")
 	s.WriteKeyWord("ENGINE ")
-	s.WritePlainf("%s(%s)", t.storage, t.versionName)
+	s.WritePlainf("%s(%s,%s)", t.storage, versionKey, delKey)
 	s.WritePlain("\n")
 
 	if t.partition != "" {
@@ -425,6 +429,7 @@ func buildCreateTable(t *table, st *ast.CreateTableStmt, s *format.RestoreCtx) {
 		}
 		s.WritePlain(")")
 	}
+	s.WritePlain("SETTINGS allow_experimental_replacing_merge_with_cleanup=1")
 }
 
 func getName(table *table, t *ast.TableName) {
@@ -499,11 +504,11 @@ func getColumns(table *table, cols []*ast.ColumnDef) {
 }
 
 func addVersionColumn(table *table) {
-	sign_colName := getUniqueColumnName(table.colpos, "_sign")
-	version_colName := getUniqueColumnName(table.colpos, "_version")
-	table.columns = append(table.columns, &column{name: sign_colName, dataType: "Int8 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
-	table.columns = append(table.columns, &column{name: version_colName, dataType: "UInt64 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
-	table.versionName = version_colName
+	//sign_colName := getUniqueColumnName(table.colpos, delKey)
+	//version_colName := getUniqueColumnName(table.colpos, versionKey)
+	table.columns = append(table.columns, &column{name: delKey, dataType: "UInt8 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
+	table.columns = append(table.columns, &column{name: versionKey, dataType: "UInt64 MATERIALIZED 1", scale: types.UnspecifiedLength, precision: types.UnspecifiedLength})
+	table.versionName = versionKey
 }
 
 func getUniqueColumnName(cols map[string]int, prefix string) string {
@@ -572,7 +577,7 @@ func getStorage(table *table, opts []*ast.TableOption) {
 
 }
 
-func getOrderByPolicy(table *table) {
+func getOrderByPolicy(table *table) error {
 
 	var orders []string
 	var backs []string
@@ -611,7 +616,8 @@ func getOrderByPolicy(table *table) {
 	}
 
 	if pknum == 0 {
-		panic("lost primary key")
+
+		return fmt.Errorf("error: %s %s lost primary key", table.schema, table.name)
 	}
 
 	table.orders = append(table.orders, fronts...)
@@ -619,6 +625,7 @@ func getOrderByPolicy(table *table) {
 	if pknum == 1 && len(orders) == 1 {
 		table.orders = []string{"tuple(" + pkname + ")"}
 	}
+	return nil
 
 }
 

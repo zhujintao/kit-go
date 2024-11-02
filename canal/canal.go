@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +37,7 @@ type syncer struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 	master *masterInfo
+	cfg    *canal.Config
 }
 
 // parse includeTables excludeTables (high priority)
@@ -63,7 +65,7 @@ func NewCanal(ctx context.Context, cancel context.CancelFunc, id, addr, user, pa
 		return nil
 	}
 
-	s := &syncer{canal: c}
+	s := &syncer{canal: c, cfg: cfg}
 	s.syncCh = make(chan interface{}, 4096)
 
 	s.ctx = ctx
@@ -195,4 +197,75 @@ func DefaultOnRow(e *RowsEvent) error {
 	}
 
 	return nil
+}
+
+func (s *syncer) GetAllCreateSql() []string {
+
+	query := "select table_schema as database_name, table_name from information_schema.tables where table_type != 'view'  order by database_name, table_name"
+
+	r, err := s.Execute(query)
+	if err != nil {
+		return nil
+	}
+
+	var creates []string
+
+	for _, row := range r.Values {
+
+		var indb map[string]bool = map[string]bool{}
+		db := string(row[0].AsString())
+		table := string(row[1].AsString())
+		if !s.CheckTableMatch(db + "." + table) {
+			continue
+		}
+
+		if _, ok := indb[db]; !ok {
+
+			if sql := s.fetchDBCreateSql(db); sql != "" {
+				creates = append(creates, sql)
+				indb[db] = true
+			}
+
+		}
+
+		if sql := s.fetchTableCreteSql(db, table); sql != "" {
+			creates = append(creates, sql)
+		}
+
+	}
+	return creates
+
+}
+
+func (s *syncer) fetchTableCreteSql(db, table string) string {
+	query := "SHOW CREATE TABLE " + db + "." + table
+	r, err := s.Execute(query)
+	if err != nil {
+		return ""
+	}
+	ss, err := r.GetString(0, 1)
+	if err != nil {
+		return ""
+	}
+
+	return strings.ReplaceAll(ss, fmt.Sprintf("CREATE TABLE `%s`", table), fmt.Sprintf("CREATE TABLE `%s`.`%s`", db, table))
+
+}
+
+func (s *syncer) fetchDBCreateSql(db string) string {
+
+	query := "SHOW CREATE DATABASE " + db
+	r, err := s.Execute(query)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	a, err := r.GetString(0, 1)
+
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	return a
+
 }

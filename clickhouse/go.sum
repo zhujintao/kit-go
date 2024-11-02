@@ -536,6 +536,8 @@ github.com/yusufpapurcu/wmi v1.2.3 h1:E1ctvB7uKFMOJw3fdOW32DwGE9I7t++CRUEMKvFoFi
 github.com/yusufpapurcu/wmi v1.2.3/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 github.com/zhujintao/kit-go/mysql v0.0.0-20241030115105-3bd7916b2ac9 h1:bsdC4+czXRu3cQ9quQY2OZD+C1u64oqgyRu14hh9aIE=
 github.com/zhujintao/kit-go/mysql v0.0.0-20241030115105-3bd7916b2ac9/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
+github.com/zhujintao/kit-go/mysql v0.0.0-20241031080522-a826d9b4c16d h1:7kO8FnpWrBiwP7vwDLGigshSxHm2i17KTR7q9jHiCxc=
+github.com/zhujintao/kit-go/mysql v0.0.0-20241031080522-a826d9b4c16d/go.mod h1:WGw9RXFUGqShBwBhM4zp4knY/5TBaDK9AGekp8d/NEA=
 go.etcd.io/etcd/api/v3 v3.5.10 h1:szRajuUUbLyppkhs9K6BRtjY37l66XQQmw7oZRANE4k=
 go.etcd.io/etcd/api/v3 v3.5.10/go.mod h1:TidfmT4Uycad3NM/o25fG3J07odo4GBB9hoxaodFCtI=
 go.etcd.io/etcd/client/pkg/v3 v3.5.10 h1:kfYIdQftBnbAq8pUWFXfpuuxFSKzlmM5cSn76JByiT0=

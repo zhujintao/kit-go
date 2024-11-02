@@ -6,7 +6,7 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.30.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20231124053542-069631e2ecfe
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20231124053542-069631e2ecfe
-	github.com/zhujintao/kit-go/mysql v0.0.0-20241030115105-3bd7916b2ac9
+	github.com/zhujintao/kit-go/mysql v0.0.0-20241031080522-a826d9b4c16d
 )
 
 require (
