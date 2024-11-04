@@ -190,16 +190,21 @@ func (s *syncer) GetMasterGTIDSet() (mysql.GTIDSet, error) {
 	return s.canal.GetMasterGTIDSet()
 }
 
-// value:
-//
-// 1 gtid value
-//
-// 2 not set
-//
-// 3 empty vale
-func (s *syncer) SetGTID(gset ...string) {
+type setgset struct {
+	syncer *syncer
+	gset   []string
+}
 
-	if len(gset) == 1 {
+func (s *setgset) Force() {
+	if len(s.gset) == 1 {
+		s.syncer.master.Save(s.gset[0])
+	}
+
+}
+
+func (s *syncer) SetGTID(gset ...string) *setgset {
+
+	if s.master.GtidSet == "" && len(gset) == 1 {
 		s.master.Save(gset[0])
 	}
 
@@ -207,7 +212,7 @@ func (s *syncer) SetGTID(gset ...string) {
 		g, _ := s.canal.GetMasterGTIDSet()
 		s.master.Save(g.String())
 	}
-
+	return &setgset{syncer: s, gset: gset}
 }
 func (s *syncer) CheckTableMatch(key string) bool {
 	return s.canal.CheckTableMatch(key)
