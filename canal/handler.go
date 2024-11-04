@@ -34,7 +34,7 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 		h.syncer.syncCh <- gsetSaver{queryEvent.GSet.String(), true}
 	}
 
-	if h.syncer.SetHandlerOnDDL == nil {
+	if h.syncer.ddlFn == nil {
 		return h.syncer.ctx.Err()
 	}
 
@@ -55,7 +55,7 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 	for _, table := range t.Tables {
 		key := table.Schema + "." + table.Name
 		if h.syncer.canal.CheckTableMatch(key) {
-			err := h.syncer.SetHandlerOnDDL(t.GetAction(), table.Schema, sql)
+			err := h.syncer.ddlFn(t.GetAction(), table.Schema, sql)
 			if err != nil {
 				h.syncer.Close()
 				return err
@@ -97,9 +97,9 @@ func (h *defaultHandler) String() string {
 
 func (h *defaultHandler) OnRow(e *canal.RowsEvent) error {
 
-	if h.syncer.SetHandlerOnRow != nil {
+	if h.syncer.rowFn != nil {
 
-		return h.syncer.SetHandlerOnRow(e)
+		return h.syncer.rowFn(e)
 	}
 	return h.syncer.ctx.Err()
 }

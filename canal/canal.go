@@ -3,10 +3,14 @@ package canal
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"math/rand"
 
 	"github.com/go-mysql-org/go-mysql/canal"
 	"github.com/go-mysql-org/go-mysql/mysql"
@@ -27,9 +31,10 @@ type syncer struct {
 	// beforeRows := e.Rows[0]
 	//
 	// afterRows := e.Rows[1]
-	SetHandlerOnRow func(e *RowsEvent) error
 
-	SetHandlerOnDDL func(action DDlAction, schema, sql string) error
+	rowFn func(e *RowsEvent) error
+
+	ddlFn func(action DDlAction, schema, sql string) error
 
 	syncCh chan interface{}
 	ctx    context.Context
@@ -40,9 +45,87 @@ type syncer struct {
 	cfg    *canal.Config
 }
 
+func (s *syncer) SetHandlerOnDDL(fn func(action DDlAction, schema, sql string) error) {
+
+	s.ddlFn = fn
+
+}
+
+func (s *syncer) SetHandlerOnRow(fn func(e *RowsEvent) error) {
+	s.rowFn = fn
+}
+
 // parse includeTables excludeTables (high priority)
 func ParseMatchTable(s *[]string, schema, table string) {
 	*s = append(*s, fmt.Sprintf(`%s\.%s$`, schema, table))
+}
+
+type Master struct {
+	Addr     string
+	User     string
+	Password string
+}
+type filterTable struct {
+	include []string
+	exclude []string
+}
+
+func FilterTable() *filterTable {
+
+	return &filterTable{}
+}
+
+func (f *filterTable) Include(table ...string) *filterTable {
+
+	f.include = append(f.include, table...)
+	return f
+
+}
+func (f *filterTable) Exclude(table ...string) *filterTable {
+
+	f.exclude = append(f.exclude, table...)
+	return f
+
+}
+
+func New(id string, cfg Master, filter *filterTable) *syncer {
+
+	s := &syncer{}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	dialer := &net.Dialer{}
+	//streamHandler, _ := log.NewStreamHandler(os.Stdout)
+	config := &canal.Config{
+		Addr:              cfg.Addr,
+		User:              cfg.User,
+		Password:          cfg.Password,
+		Charset:           mysql.DEFAULT_CHARSET,
+		ServerID:          uint32(rand.New(rand.NewSource(time.Now().Unix())).Intn(1000)) + 1001,
+		Flavor:            mysql.DEFAULT_FLAVOR,
+		Dialer:            dialer.DialContext,
+		IncludeTableRegex: filter.include,
+		ExcludeTableRegex: filter.exclude,
+
+		//Logger:   log.NewDefault(streamHandler),
+	}
+	c, err := canal.NewCanal(config)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+
+	s.cfg = config
+	s.syncCh = make(chan interface{}, 4096)
+	s.canal = c
+
+	master, err := loadMasterInfo(".")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	s.master = master
+	c.SetEventHandler(&defaultHandler{syncer: s})
+
+	return s
 }
 
 // delete source code 90~93
@@ -106,9 +189,24 @@ func (s *syncer) ExecuteSelectStreaming(cmd string, perRowCallback func(row []go
 func (s *syncer) GetMasterGTIDSet() (mysql.GTIDSet, error) {
 	return s.canal.GetMasterGTIDSet()
 }
-func (s *syncer) SetMasterInfo(gset string) {
 
-	s.master.Save(gset)
+// value:
+//
+// 1 gtid value
+//
+// 2 not set
+//
+// 3 empty vale
+func (s *syncer) SetGTID(gset ...string) {
+
+	if len(gset) == 1 {
+		s.master.Save(gset[0])
+	}
+
+	if s.master.GtidSet == "" && len(gset) == 0 {
+		g, _ := s.canal.GetMasterGTIDSet()
+		s.master.Save(g.String())
+	}
 
 }
 func (s *syncer) CheckTableMatch(key string) bool {
@@ -185,13 +283,13 @@ func DefaultOnRow(e *RowsEvent) error {
 	switch e.Action {
 	case InsertAction:
 		s, v := dml.Insert(e.Table, e.Rows[0])
-		fmt.Println(s, v)
+		fmt.Println(e.Header.LogPos, s, v)
 	case UpdateAction:
 		s, v := dml.Update(e.Table, e.Rows[0], e.Rows[1])
-		fmt.Println(s, v)
+		fmt.Println(e.Header.LogPos, s, v)
 	case DeleteAction:
 		s, v := dml.Delete(e.Table, e.Rows[0])
-		fmt.Println(s, v)
+		fmt.Println(e.Header.LogPos, s, v)
 	default:
 		return fmt.Errorf("invalid rows action %s", e.Action)
 	}

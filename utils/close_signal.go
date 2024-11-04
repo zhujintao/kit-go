@@ -19,9 +19,14 @@ func SignalNotify() *sig {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
+
 	return &sig{stop}
 }
-func (s *sig) Close() os.Signal {
-	n := <-s.stop
-	return n
+func (s *sig) Close(f func()) {
+
+	go func() {
+		<-s.stop
+		f()
+	}()
+
 }
