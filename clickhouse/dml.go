@@ -149,3 +149,8 @@ func (d *DmlClickhouse) Update2(tableInfo *mysql.TableInfo, beforeRows, afterRow
 	return sql, values
 
 }
+func (d *DmlClickhouse) GetOptimizeTable(db, table string) string {
+
+	return "OPTIMIZE TABLE " + db + "." + table + " FINAL CLEANUP"
+
+}

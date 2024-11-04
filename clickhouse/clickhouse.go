@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/format"
@@ -71,7 +71,8 @@ type table struct {
 }
 
 func InErrCode(err error, code ...int32) bool {
-	errCoe := err.(*proto.Exception).Code
+
+	errCoe := err.(*clickhouse.Exception).Code
 
 	return slices.Contains(code, errCoe)
 
