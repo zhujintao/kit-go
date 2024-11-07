@@ -25,7 +25,8 @@ func loadMasterInfo(dataDir string) (*masterInfo, error) {
 	var m masterInfo
 
 	if len(dataDir) == 0 {
-		return &m, nil
+		dataDir = "."
+		//return &m, nil
 	}
 
 	m.filePath = path.Join(dataDir, "master.info")

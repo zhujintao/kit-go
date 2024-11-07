@@ -37,7 +37,7 @@ func (d *DmlDefault) Insert(tableInfo *TableInfo, row []interface{}) (string, []
 
 	}
 	value = DelNilI(value)
-	sql := "insert into " + db + "." + table + " (" + strings.Join(DelNilS(field), ",") + ") values ( " + strings.Join(DelNilS(pos), ",") + ")"
+	sql := "insert into " + db + "." + table + " (" + strings.Join(DelNilS(field), ",") + ") values (" + strings.Join(DelNilS(pos), ",") + ")"
 
 	return sql, value
 

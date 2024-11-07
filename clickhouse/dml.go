@@ -11,12 +11,21 @@ type DmlClickhouse struct {
 	mysql.DmlInterface
 }
 
-const (
+var (
 	delKey     = "_del"
 	versionKey = "_version"
 	dataDelete = 1
 	dataInsert = 0
 )
+
+func (d *DmlClickhouse) UseOldVerFlag() {
+
+	delKey = "_sign"
+	versionKey = "_version"
+	dataDelete = -1
+	dataInsert = 1
+
+}
 
 func (d *DmlClickhouse) Insert(tableInfo *mysql.TableInfo, row []interface{}, dataVersion ...uint64) (string, []interface{}) {
 	time.Now().UnixMicro()
@@ -88,7 +97,7 @@ func onCkInsert(tableInfo *mysql.TableInfo, row []interface{}, addNull bool, isd
 	return sql, value
 }
 
-func (d *DmlClickhouse) Update2(tableInfo *mysql.TableInfo, beforeRows, afterRows []interface{}) (string, []interface{}) {
+func (d *DmlClickhouse) update2(tableInfo *mysql.TableInfo, beforeRows, afterRows []interface{}) (string, []interface{}) {
 	dataVersion := time.Now().Unix()
 	row := beforeRows
 	db := tableInfo.Schema

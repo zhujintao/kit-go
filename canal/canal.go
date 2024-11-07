@@ -1,6 +1,7 @@
 package canal
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/go-mysql-org/go-mysql/canal"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/go-mysql-org/go-mysql/schema"
+
 	gomysql "github.com/zhujintao/kit-go/mysql"
 )
 
@@ -24,6 +27,7 @@ const (
 )
 
 type RowsEvent = canal.RowsEvent
+type Table = schema.Table
 
 type syncer struct {
 	// e.RowsEvent
@@ -43,6 +47,7 @@ type syncer struct {
 	wg     sync.WaitGroup
 	master *masterInfo
 	cfg    *canal.Config
+	path   string
 }
 
 func (s *syncer) SetHandlerOnDDL(fn func(action DDlAction, schema, sql string) error) {
@@ -61,10 +66,14 @@ func ParseMatchTable(s *[]string, schema, table string) {
 }
 
 type Master struct {
-	Addr     string
-	User     string
-	Password string
+	Addr      string
+	User      string
+	Password  string
+	StorePath string
 }
+
+type Slave Master
+
 type filterTable struct {
 	include []string
 	exclude []string
@@ -75,6 +84,7 @@ func FilterTable() *filterTable {
 	return &filterTable{}
 }
 
+// [mysql\\..*]  is 'mysql' database all tables
 func (f *filterTable) Include(table ...string) *filterTable {
 
 	f.include = append(f.include, table...)
@@ -117,11 +127,13 @@ func New(id string, cfg Master, filter *filterTable) *syncer {
 	s.syncCh = make(chan interface{}, 4096)
 	s.canal = c
 
-	master, err := loadMasterInfo(".")
+	s.path = filepath.Join(cfg.StorePath, id)
+	master, err := loadMasterInfo(s.path)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	s.master = master
 	c.SetEventHandler(&defaultHandler{syncer: s})
 
@@ -171,9 +183,9 @@ func NewCanal(ctx context.Context, cancel context.CancelFunc, id, addr, user, pa
 
 	return s
 }
-func (s *syncer) GetMasterInfo(path, id string) *masterInfo {
+func (s *syncer) GetMasterInfo(path string) *masterInfo {
 
-	masterinfo, err := loadMasterInfo(filepath.Join(path, id))
+	masterinfo, err := loadMasterInfo(path)
 	if err != nil {
 		fmt.Println("loadMasterInfo", err)
 		return nil
@@ -204,15 +216,16 @@ func (s *setgset) Force() {
 
 func (s *syncer) SetGTID(gset ...string) *setgset {
 
-	if s.master.GtidSet == "" && len(gset) == 1 {
+	if s.master.Gtidset() == "" && len(gset) == 1 {
 		s.master.Save(gset[0])
 	}
 
-	if s.master.GtidSet == "" && len(gset) == 0 {
+	if s.master.Gtidset() == "" && len(gset) == 0 {
 		g, _ := s.canal.GetMasterGTIDSet()
 		s.master.Save(g.String())
 	}
 	return &setgset{syncer: s, gset: gset}
+
 }
 func (s *syncer) CheckTableMatch(key string) bool {
 	return s.canal.CheckTableMatch(key)
@@ -225,6 +238,9 @@ func (s *syncer) Run() error {
 	go s.writeMasterInfo()
 	gset, _ := mysql.ParseMysqlGTIDSet(s.master.GtidSet)
 	if err := s.canal.StartFromGTID(gset); err != nil {
+
+		s.Close()
+		fmt.Println("Run", err)
 		return err
 	}
 
@@ -283,7 +299,47 @@ func (s *syncer) writeMasterInfo() {
 
 }
 
-func DefaultOnRow(e *RowsEvent) error {
+func CallbackHandlerOnRow(insert func(tableInfo *Table, row []interface{}) error, update func(tableInfo *Table, beforeRows []interface{}, afterRows []interface{}) error, delete func(tableInfo *Table, row []interface{}) error) func(e *RowsEvent) error {
+
+	return func(e *RowsEvent) error {
+
+		switch e.Action {
+		case InsertAction:
+			if insert == nil {
+				return nil
+			}
+			err := insert(e.Table, e.Rows[0])
+			if err != nil {
+				return err
+			}
+
+		case UpdateAction:
+			if update == nil {
+				return nil
+			}
+			err := update(e.Table, e.Rows[0], e.Rows[1])
+			if err != nil {
+				return err
+			}
+		case DeleteAction:
+			if delete == nil {
+				return nil
+			}
+			err := delete(e.Table, e.Rows[0])
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("invalid rows action %s", e.Action)
+		}
+
+		return nil
+
+	}
+
+}
+
+func DefaultHandlerOnRow(e *RowsEvent) error {
 	dml := &gomysql.DmlDefault{}
 	switch e.Action {
 	case InsertAction:
@@ -300,6 +356,102 @@ func DefaultOnRow(e *RowsEvent) error {
 	}
 
 	return nil
+}
+
+func (s *syncer) FetchFullData(write func(tableInfo *gomysql.TableInfo, row []interface{}) error) error {
+
+	if len(s.GetMasterInfo(s.path).Gtidset()) != 0 {
+		fmt.Println("inc data")
+		return nil
+	}
+
+	fmt.Println("full data")
+
+	query := "select table_schema as database_name, table_name from information_schema.tables where table_type != 'view'  order by database_name, table_name"
+	s.SetGTID()
+	r, err := s.Execute(query)
+	if err != nil {
+		return fmt.Errorf("Execute(query): %v", err)
+	}
+
+	var dbs map[string][]string = map[string][]string{}
+	for _, row := range r.Values {
+
+		db := string(row[0].AsString())
+		table := string(row[1].AsString())
+		if !s.CheckTableMatch(db + "." + table) {
+			continue
+		}
+
+		dbs[db] = append(dbs[db], table)
+
+	}
+
+	for db, tables := range dbs {
+
+		for _, table := range tables {
+			var select_all bytes.Buffer
+
+			c := gomysql.NewClient(&gomysql.Config{Addr: s.cfg.Addr, User: s.cfg.User, Password: s.cfg.Password})
+
+			r, err := c.Execute("SELECT COLUMN_NAME AS column_name, COLUMN_TYPE AS column_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", db, table)
+			if err != nil {
+				return fmt.Errorf("Execute(SELECT COLUMN_NAME AS): %v", err)
+
+			}
+			select_all.WriteString("SELECT ")
+			for i, row := range r.Values {
+				if i > 0 {
+					select_all.WriteString(",")
+				}
+				column_name := string(row[0].AsString())
+				column_type := string(row[1].AsString())
+
+				if strings.HasPrefix(column_type, "set") {
+
+					select_all.WriteString(backQuote(column_name) + " + 0")
+
+				} else {
+					select_all.WriteString(backQuote(column_name))
+				}
+			}
+			select_all.WriteString(" FROM ")
+			select_all.WriteString(backQuote(db))
+			select_all.WriteString(".")
+			select_all.WriteString(backQuote(table))
+
+			//select_all.WriteString("limit 10")
+
+			sql := select_all.String()
+			tableInfo, err := s.canal.GetTable(db, table)
+			if err != nil {
+				fmt.Println("GetTable", err)
+				return err
+			}
+			c.ExecuteSelectStreaming(sql, func(row []gomysql.FieldValue) error {
+				if write == nil {
+					return nil
+				}
+				var _row []interface{}
+				for _, v := range row {
+
+					// modify source code delete b.WriteByte('\'')
+					_row = append(_row, string(v.String()))
+
+				}
+				return write(tableInfo, _row)
+
+			}, nil)
+
+		}
+
+	}
+
+	return nil
+
+}
+func backQuote(s string) string {
+	return fmt.Sprintf("`%s`", s)
 }
 
 func (s *syncer) GetAllCreateSql() []string {
