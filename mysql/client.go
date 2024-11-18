@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -149,4 +150,31 @@ func (c *Conn) ExecuteSelectStreaming(cmd string, perRowCallback func(row []mysq
 		break
 	}
 	return err
+}
+
+func (c *Conn) GetNextPage(table, whereField, startId string, limit int) []string {
+	var list []string
+	var maxid string
+
+	maxid = startId
+	list = append(list, maxid)
+	//var count int
+
+	for {
+		//ts := time.Now()
+		//count++
+		sql := fmt.Sprintf("SELECT MAX(%s) FROM (SELECT %s FROM %s WHERE %s > ? ORDER BY ID LIMIT %d) a", whereField, whereField, table, whereField, limit)
+
+		r, err := c.Execute(sql, maxid)
+		if err != nil {
+			return nil
+		}
+		maxid = string(r.Values[0][0].AsString())
+		if maxid == "" {
+			break
+		}
+		//fmt.Printf("%d %v %v %v\n", count, maxid, r.Status, time.Since(ts).Truncate(time.Second).String())
+		list = append(list, maxid)
+	}
+	return list
 }

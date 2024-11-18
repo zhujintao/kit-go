@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -16,14 +18,11 @@ import (
 	"github.com/go-mysql-org/go-mysql/canal"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/schema"
+	"github.com/pingcap/tidb/pkg/parser/ast"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 
 	gomysql "github.com/zhujintao/kit-go/mysql"
-)
-
-const (
-	UpdateAction = "update"
-	InsertAction = "insert"
-	DeleteAction = "delete"
 )
 
 type RowsEvent = canal.RowsEvent
@@ -48,11 +47,55 @@ type syncer struct {
 	master *masterInfo
 	cfg    *canal.Config
 	path   string
+	ddlacl *ddlAcl
 }
 
-func (s *syncer) SetHandlerOnDDL(fn func(action DDlAction, schema, sql string) error) {
+type ddlAcl struct {
+	include []DDlAction
+	exclude []DDlAction
+}
+
+func (d *ddlAcl) Include(a ...DDlAction) {
+
+	d.include = append(d.include, a...)
+
+}
+func (d *ddlAcl) Exclude(a ...DDlAction) {
+	d.exclude = append(d.exclude, a...)
+}
+
+var defaultDDl []DDlAction = []DDlAction{
+	CreateDatabase,
+	DropDatabase,
+	CreateTable,
+	DropTable,
+	RenameTable,
+	TruncateTable,
+	ast.AlterTableAddColumns,
+	ast.AlterTableDropColumn,
+	ast.AlterTableDropIndex,
+	ast.AlterTableChangeColumn,
+	ast.AlterTableModifyColumn,
+	ast.AlterTableOption,
+}
+
+func GetDefaultDDl() []DDlAction {
+
+	return defaultDDl
+}
+
+func (d *ddlAcl) DefaultDDl() *ddlAcl {
+
+	d.include = defaultDDl
+	return d
+
+}
+
+func (s *syncer) SetHandlerOnDDL(fn func(action DDlAction, schema, sql string) error) *ddlAcl {
 
 	s.ddlFn = fn
+	s.ddlacl = &ddlAcl{}
+	return s.ddlacl
 
 }
 
@@ -114,6 +157,7 @@ func New(id string, cfg Master, filter *filterTable) *syncer {
 		Dialer:            dialer.DialContext,
 		IncludeTableRegex: filter.include,
 		ExcludeTableRegex: filter.exclude,
+		ReadTimeout:       time.Hour * 24,
 
 		//Logger:   log.NewDefault(streamHandler),
 	}
@@ -126,7 +170,7 @@ func New(id string, cfg Master, filter *filterTable) *syncer {
 	s.cfg = config
 	s.syncCh = make(chan interface{}, 4096)
 	s.canal = c
-
+	//s.ddlacl = &ddlAcl{}
 	s.path = filepath.Join(cfg.StorePath, id)
 	master, err := loadMasterInfo(s.path)
 	if err != nil {
@@ -182,6 +226,11 @@ func NewCanal(ctx context.Context, cancel context.CancelFunc, id, addr, user, pa
 	c.SetEventHandler(&defaultHandler{syncer: s})
 
 	return s
+}
+
+func (s *syncer) GetPath() string {
+	return s.path
+
 }
 func (s *syncer) GetMasterInfo(path string) *masterInfo {
 
@@ -304,7 +353,7 @@ func CallbackHandlerOnRow(insert func(tableInfo *Table, row []interface{}) error
 	return func(e *RowsEvent) error {
 
 		switch e.Action {
-		case InsertAction:
+		case canal.InsertAction:
 			if insert == nil {
 				return nil
 			}
@@ -313,7 +362,7 @@ func CallbackHandlerOnRow(insert func(tableInfo *Table, row []interface{}) error
 				return err
 			}
 
-		case UpdateAction:
+		case canal.UpdateAction:
 			if update == nil {
 				return nil
 			}
@@ -321,7 +370,7 @@ func CallbackHandlerOnRow(insert func(tableInfo *Table, row []interface{}) error
 			if err != nil {
 				return err
 			}
-		case DeleteAction:
+		case canal.DeleteAction:
 			if delete == nil {
 				return nil
 			}
@@ -342,13 +391,13 @@ func CallbackHandlerOnRow(insert func(tableInfo *Table, row []interface{}) error
 func DefaultHandlerOnRow(e *RowsEvent) error {
 	dml := &gomysql.DmlDefault{}
 	switch e.Action {
-	case InsertAction:
+	case canal.InsertAction:
 		s, v := dml.Insert(e.Table, e.Rows[0])
 		fmt.Println(e.Header.LogPos, s, v)
-	case UpdateAction:
+	case canal.UpdateAction:
 		s, v := dml.Update(e.Table, e.Rows[0], e.Rows[1])
 		fmt.Println(e.Header.LogPos, s, v)
-	case DeleteAction:
+	case canal.DeleteAction:
 		s, v := dml.Delete(e.Table, e.Rows[0])
 		fmt.Println(e.Header.LogPos, s, v)
 	default:
@@ -358,7 +407,9 @@ func DefaultHandlerOnRow(e *RowsEvent) error {
 	return nil
 }
 
-func (s *syncer) FetchFullData(write func(tableInfo *gomysql.TableInfo, row []interface{}) error) error {
+// semlimit fetch table concurrent size
+// where is sql where
+func (s *syncer) FetchFullData(semlimit int64, write func(tableInfo *gomysql.TableInfo, row []interface{}) error, where ...string) error {
 
 	if len(s.GetMasterInfo(s.path).Gtidset()) != 0 {
 		fmt.Println("inc data")
@@ -379,6 +430,7 @@ func (s *syncer) FetchFullData(write func(tableInfo *gomysql.TableInfo, row []in
 
 		db := string(row[0].AsString())
 		table := string(row[1].AsString())
+
 		if !s.CheckTableMatch(db + "." + table) {
 			continue
 		}
@@ -387,74 +439,100 @@ func (s *syncer) FetchFullData(write func(tableInfo *gomysql.TableInfo, row []in
 
 	}
 
+	eg, ctx := errgroup.WithContext(s.ctx)
 	for db, tables := range dbs {
+		eg.Go(func() error {
+			limiter := semaphore.NewWeighted(semlimit)
 
-		for _, table := range tables {
-			var select_all bytes.Buffer
-
-			c := gomysql.NewClient(&gomysql.Config{Addr: s.cfg.Addr, User: s.cfg.User, Password: s.cfg.Password})
-
-			r, err := c.Execute("SELECT COLUMN_NAME AS column_name, COLUMN_TYPE AS column_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", db, table)
-			if err != nil {
-				return fmt.Errorf("Execute(SELECT COLUMN_NAME AS): %v", err)
-
-			}
-			select_all.WriteString("SELECT ")
-			for i, row := range r.Values {
-				if i > 0 {
-					select_all.WriteString(",")
+			for _, table := range tables {
+				if err := limiter.Acquire(ctx, 1); err != nil {
+					fmt.Println("limiter.Acquire", err)
+					return err
 				}
-				column_name := string(row[0].AsString())
-				column_type := string(row[1].AsString())
 
-				if strings.HasPrefix(column_type, "set") {
+				eg.Go(func() error {
 
-					select_all.WriteString(backQuote(column_name) + " + 0")
+					var select_all bytes.Buffer
+					c := gomysql.NewClient(&gomysql.Config{Addr: s.cfg.Addr, User: s.cfg.User, Password: s.cfg.Password})
+					r, err := c.Execute("SELECT COLUMN_NAME AS column_name, COLUMN_TYPE AS column_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", db, table)
+					if err != nil {
 
-				} else {
-					select_all.WriteString(backQuote(column_name))
-				}
-			}
-			select_all.WriteString(" FROM ")
-			select_all.WriteString(backQuote(db))
-			select_all.WriteString(".")
-			select_all.WriteString(backQuote(table))
+						fmt.Println("Execute(SELECT COLUMN_NAME AS): ", err)
+						return fmt.Errorf("Execute(SELECT COLUMN_NAME AS): %v", err)
 
-			//select_all.WriteString("limit 10")
+					}
+					select_all.WriteString("SELECT ")
+					for i, row := range r.Values {
+						if i > 0 {
+							select_all.WriteString(",")
+						}
+						column_name := string(row[0].AsString())
+						column_type := string(row[1].AsString())
 
-			sql := select_all.String()
-			tableInfo, err := s.canal.GetTable(db, table)
-			if err != nil {
-				fmt.Println("GetTable", err)
-				return err
-			}
-			c.ExecuteSelectStreaming(sql, func(row []gomysql.FieldValue) error {
-				if write == nil {
+						if strings.HasPrefix(column_type, "set") {
+
+							select_all.WriteString(backQuote(column_name) + " + 0")
+
+						} else {
+							select_all.WriteString(backQuote(column_name))
+						}
+					}
+					select_all.WriteString(" FROM ")
+					select_all.WriteString(backQuote(db))
+					select_all.WriteString(".")
+					select_all.WriteString(backQuote(table))
+
+					for _, s := range where {
+						select_all.WriteString(s)
+					}
+
+					sql := select_all.String()
+					tableInfo, err := s.canal.GetTable(db, table)
+					if err != nil {
+						limiter.Release(1)
+						fmt.Println("GetTable", err)
+						return err
+					}
+
+					err = c.ExecuteSelectStreaming(sql, func(row []gomysql.FieldValue) error {
+						if write == nil {
+							return nil
+						}
+						var _row []interface{}
+						for _, v := range row {
+
+							// modify source code delete b.WriteByte('\'')
+							_row = append(_row, string(v.String()))
+						}
+						return write(tableInfo, _row)
+
+					}, nil)
+					limiter.Release(1)
+					if err != nil {
+						fmt.Println(db, tableInfo, "-", err)
+						return err
+					}
+
+					fmt.Println(db, tableInfo, "- ok")
+
 					return nil
-				}
-				var _row []interface{}
-				for _, v := range row {
+				})
 
-					// modify source code delete b.WriteByte('\'')
-					_row = append(_row, string(v.String()))
-
-				}
-				return write(tableInfo, _row)
-
-			}, nil)
-
-		}
+			}
+			return nil
+		})
 
 	}
 
-	return nil
+	return eg.Wait()
 
 }
 func backQuote(s string) string {
 	return fmt.Sprintf("`%s`", s)
 }
 
-func (s *syncer) GetAllCreateSql() []string {
+// skip table, not create
+func (s *syncer) GetAllCreateSql(skip ...string) []string {
 
 	query := "select table_schema as database_name, table_name from information_schema.tables where table_type != 'view'  order by database_name, table_name"
 
@@ -470,7 +548,30 @@ func (s *syncer) GetAllCreateSql() []string {
 		var indb map[string]bool = map[string]bool{}
 		db := string(row[0].AsString())
 		table := string(row[1].AsString())
-		if !s.CheckTableMatch(db + "." + table) {
+		key := db + "." + table
+		if !s.CheckTableMatch(key) {
+			continue
+		}
+
+		//reg.MatchString(key)
+
+		if slices.Contains(skip, db) || slices.Contains(skip, key) {
+			continue
+		}
+		flag := false
+		for _, s := range skip {
+
+			k, err := regexp.Compile(s)
+			if err != nil {
+				fmt.Println("skip ", err)
+				continue
+			}
+			if k.MatchString(key) {
+				flag = true
+			}
+
+		}
+		if flag {
 			continue
 		}
 

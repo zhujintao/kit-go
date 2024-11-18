@@ -41,6 +41,8 @@ var mappedTypes map[string]string = map[string]string{
 	"text":       "String",
 	"blob":       "String",
 	"mediumtext": "String",
+	"mediumblob": "String",
+	"longtext":   "String",
 	"decimal":    "Decimal",
 	"enum":       "Enum8",
 }
@@ -226,7 +228,7 @@ func getAlterTableSpec(t *table, specs []*ast.AlterTableSpec) error {
 			t.ddlAction = ast.AlterTableDropIndex
 
 		default:
-			return fmt.Errorf("ddl action unknown")
+			return fmt.Errorf("ddl action unknown %T", spec.Tp)
 		}
 
 		t.columns = append(t.columns, table.columns...)

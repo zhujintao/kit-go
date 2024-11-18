@@ -9,6 +9,10 @@ import (
 
 type DmlClickhouse struct {
 	mysql.DmlInterface
+	delKey     string
+	versionKey string
+	dataDelete int
+	dataInsert int
 }
 
 var (

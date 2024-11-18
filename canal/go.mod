@@ -9,6 +9,7 @@ require (
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20231124053542-069631e2ecfe
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726
 	github.com/zhujintao/kit-go/mysql v0.0.0-20241030114053-3a40674348b7
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 
 )
 

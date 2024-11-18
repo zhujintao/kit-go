@@ -1,6 +1,8 @@
 package canal
 
 import (
+	"slices"
+
 	"github.com/pingcap/tidb/pkg/parser/ast"
 )
 
@@ -14,29 +16,37 @@ type parserx struct {
 	ddlaction DDlAction
 }
 
-type DDlAction string
+// ast.AlterTableType 1
+//
+// custom 1000
+type DDlAction = ast.AlterTableType
 
 const (
-	CreateDatabase DDlAction = "CreateDatabase"
-	DropDatabase   DDlAction = "DropDatabase"
-	CreateTable    DDlAction = "CreateTable"
-	DropTable      DDlAction = "DropTable"
-	RenameTable    DDlAction = "RenameTable"
-	TruncateTable  DDlAction = "TruncateTable"
-	AlterTable     DDlAction = "AlterTable"
-	AddColumn      DDlAction = "AddColumn"
-	DropColumn     DDlAction = "DropColumn"
-	DropIndex      DDlAction = "DropIndex"
-	ChangeColumn   DDlAction = "ChangeColumn"
+	CreateDatabase DDlAction = 1000 + iota + 1
+	DropDatabase
+	RenameTable
+	CreateTable
+	AlterTable
+	DropTable
+	TruncateTable
 )
 
-func (p *parserx) IsAction() bool {
+func (p *parserx) ddlFilter(a *ddlAcl) bool {
 
-	return p.ddlaction != ""
-}
+	if len(a.exclude) == 0 && len(a.include) == 0 {
+		return true
+	}
+	matchFlag := false
 
-func (p *parserx) GetAction() DDlAction {
-	return p.ddlaction
+	if slices.Contains(a.include, p.ddlaction) {
+		matchFlag = true
+	}
+	if slices.Contains(a.exclude, p.ddlaction) {
+		matchFlag = false
+	}
+
+	return matchFlag
+
 }
 
 func parseSql(schema string, stmt ast.StmtNode) *parserx {
@@ -54,24 +64,15 @@ func parseSql(schema string, stmt ast.StmtNode) *parserx {
 		}
 	case *ast.AlterTableStmt:
 
-		//p.ddlaction = AlterTable
+		p.ddlaction = AlterTable
 		if st.Table.Schema.O != "" {
 			schemaName = st.Table.Schema.O
 		}
 		p.Tables = append(p.Tables, &table{Name: st.Table.Name.O, Schema: schemaName})
 		for _, spec := range st.Specs {
-			switch spec.Tp {
-			case ast.AlterTableDropIndex:
-				p.ddlaction = DropIndex
-			case ast.AlterTableAddColumns:
-				p.ddlaction = AddColumn
-			case ast.AlterTableDropColumn:
-				p.ddlaction = DropColumn
-			case ast.AlterTableModifyColumn:
-			case ast.AlterTableChangeColumn:
-				p.ddlaction = ChangeColumn
-			}
+			p.ddlaction = spec.Tp //ast.AlterTableType((reflect.ValueOf(spec.Tp).Int()))
 		}
+
 	case *ast.DropTableStmt:
 		p.ddlaction = DropTable
 

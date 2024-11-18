@@ -48,18 +48,25 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 		return err
 	}
 	t := parseSql(schema, stmt)
-	if !t.IsAction() {
-		return fmt.Errorf("ddl action unknown")
+
+	if !t.ddlFilter(h.syncer.ddlacl) {
+		fmt.Println("skip ddl:", t.ddlaction)
+		return nil
 	}
 
 	for _, table := range t.Tables {
+
 		key := table.Schema + "." + table.Name
-		if h.syncer.canal.CheckTableMatch(key) {
-			err := h.syncer.ddlFn(t.GetAction(), table.Schema, sql)
-			if err != nil {
-				h.syncer.Close()
-				return err
-			}
+
+		if !h.syncer.canal.CheckTableMatch(key) {
+			continue
+		}
+
+		err := h.syncer.ddlFn(t.ddlaction, table.Schema, sql)
+
+		if err != nil {
+			h.syncer.Close()
+			return err
 		}
 
 	}
