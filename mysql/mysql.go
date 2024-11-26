@@ -14,6 +14,7 @@ import (
 
 type FieldValue = mysql.FieldValue
 type TableInfo = schema.Table
+type Dialer = client.Dialer
 
 // type Conn = client.Conn
 type SelectPerRowCallback func(client *Conn, table *TableInfo, row []mysql.FieldValue) error

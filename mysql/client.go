@@ -152,18 +152,18 @@ func (c *Conn) ExecuteSelectStreaming(cmd string, perRowCallback func(row []mysq
 	return err
 }
 
-func (c *Conn) GetNextPage(table, whereField, startId string, limit int) []string {
+func (c *Conn) GetNextPage(table, key, startId string, limit int) []string {
 	var list []string
 	var maxid string
 
 	maxid = startId
 	list = append(list, maxid)
-	//var count int
+	var count int
 
 	for {
-		//ts := time.Now()
-		//count++
-		sql := fmt.Sprintf("SELECT MAX(%s) FROM (SELECT %s FROM %s WHERE %s > ? ORDER BY ID LIMIT %d) a", whereField, whereField, table, whereField, limit)
+		ts := time.Now()
+		count++
+		sql := fmt.Sprintf("SELECT MAX(%s) FROM (SELECT %s FROM %s WHERE %s > ? ORDER BY ID LIMIT %d) a", key, key, table, key, limit)
 
 		r, err := c.Execute(sql, maxid)
 		if err != nil {
@@ -173,7 +173,7 @@ func (c *Conn) GetNextPage(table, whereField, startId string, limit int) []strin
 		if maxid == "" {
 			break
 		}
-		//fmt.Printf("%d %v %v %v\n", count, maxid, r.Status, time.Since(ts).Truncate(time.Second).String())
+		fmt.Printf("%d %v %v %v\n", count, maxid, r.Status, time.Since(ts).Truncate(time.Millisecond).String())
 		list = append(list, maxid)
 	}
 	return list
