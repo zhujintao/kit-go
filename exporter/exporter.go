@@ -114,13 +114,16 @@ func RegistryFactory(collector string, factory func() (Collector, error), help .
 }
 
 type exporter struct {
+	name string
 }
 
 func NewCollector(appName ...string) *exporter {
 
 	cli.HelpFlag = &cli.BoolFlag{Name: "help", Hidden: true}
+
 	if len(appName) == 1 {
 		app.Name = appName[0]
+
 	}
 
 	err := app.Run(context.Background(), os.Args)
@@ -137,7 +140,7 @@ func NewCollector(appName ...string) *exporter {
 	for c := range maps.Keys(collectors) {
 		fmt.Printf("\t%s\n", c)
 	}
-	return &exporter{}
+	return &exporter{name: app.Name}
 }
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
@@ -168,6 +171,7 @@ func (e *exporter) Run() {
 	}}))
 	prometheus.MustRegister(e)
 	http.Handle("/metrics", promhttp.Handler())
-	fmt.Println("Starting zjt_exporter", "listen", listen)
+
+	fmt.Println("Starting "+e.name, "listen", listen)
 	http.ListenAndServe(listen, nil)
 }
