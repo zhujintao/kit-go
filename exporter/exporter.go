@@ -42,6 +42,7 @@ var (
 )
 
 type collector struct {
+	name    string
 	running map[string]bool
 	action  *Action
 	fn      func(action *Action) error
@@ -52,6 +53,7 @@ func (c *collector) AddFlag(flag ...cli.Flag) {
 }
 
 func (c *collector) CallFunc(fn func(action *Action) error) {
+
 	c.fn = fn
 }
 
@@ -59,9 +61,13 @@ func (c *collector) Exec(ch chan<- Metric) error {
 	c.action.ch = ch
 	return c.fn(c.action)
 }
+func (c *collector) RegistryCollector() {
+	RegistryCollector(c.name, c)
+}
 
-func New() *collector {
+func New(name string) *collector {
 	return &collector{
+		name:   name,
 		action: newAction(),
 	}
 }
@@ -116,7 +122,7 @@ type exporter struct {
 	name string
 }
 
-func NewCollector(appName ...string) *exporter {
+func NewApp(appName ...string) *exporter {
 
 	cli.HelpFlag = &cli.BoolFlag{Name: "help", Hidden: true}
 
