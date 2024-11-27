@@ -44,21 +44,20 @@ var (
 type collector struct {
 	running map[string]bool
 	action  *Action
-	fn      func(action *Action, ch chan<- Metric) error
+	fn      func(action *Action) error
 }
 
 func (c *collector) AddFlag(flag ...cli.Flag) {
 	app.Flags = append(app.Flags, flag...)
 }
 
-func (c *collector) CallFunc(fn func(action *Action, ch chan<- Metric) error) {
-
+func (c *collector) CallFunc(fn func(action *Action) error) {
 	c.fn = fn
 }
 
 func (c *collector) Exec(ch chan<- Metric) error {
 	c.action.ch = ch
-	return c.fn(c.action, ch)
+	return c.fn(c.action)
 }
 
 func New() *collector {
