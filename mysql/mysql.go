@@ -253,3 +253,19 @@ func ErrorCode(errMsg string) (code int) {
 	fmt.Sscanf(errMsg, "%s%d", &tmpStr, &code)
 	return
 }
+
+func ParseConfDSN(cfg *Config, dsn string) error {
+	pos := strings.LastIndex(dsn, "@")
+	if pos == -1 {
+		return fmt.Errorf("dsn format error: user:password@ip:port")
+	}
+	account := dsn[:pos]
+	address := dsn[pos+1:]
+	pos = strings.Index(account, ":")
+	user := account[:pos]
+	password := account[pos+1:]
+	cfg.Addr = address
+	cfg.User = user
+	cfg.Password = password
+	return nil
+}
