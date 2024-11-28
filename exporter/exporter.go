@@ -16,7 +16,7 @@ import (
 
 type Metric = prometheus.Metric
 type Collector interface {
-	Exec(ch chan<- prometheus.Metric) error
+	exec(ch chan<- prometheus.Metric) error
 }
 
 var (
@@ -44,31 +44,32 @@ var (
 type collector struct {
 	name    string
 	running map[string]bool
-	action  *Action
-	fn      func(action *Action) error
+	task    *Task
+	fn      func(action *Task) error
 }
 
 func (c *collector) AddFlag(flag ...cli.Flag) {
 	app.Flags = append(app.Flags, flag...)
 }
 
-func (c *collector) CallFunc(fn func(action *Action) error) {
-
+func (c *collector) CallFunc(fn func(action *Task) error) {
 	c.fn = fn
 }
 
-func (c *collector) Exec(ch chan<- Metric) error {
-	c.action.ch = ch
-	return c.fn(c.action)
+func (c *collector) exec(ch chan<- Metric) error {
+	return c.fn(c.task)
 }
+
 func (c *collector) RegistryCollector() {
+
 	RegistryCollector(c.name, c)
 }
 
 func New(name string) *collector {
+
 	return &collector{
-		name:   name,
-		action: newAction(),
+		name: name,
+		task: newTask(),
 	}
 }
 
@@ -135,7 +136,6 @@ func NewApp(appName ...string) *exporter {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(0)
-
 	}
 	if len(collectors) == 0 {
 		fmt.Println("not available collectors, use --help")
@@ -157,7 +157,7 @@ func (exporter) Collect(ch chan<- prometheus.Metric) {
 		wg.Add(1)
 		go func(name string, c Collector) {
 			defer wg.Done()
-			err := c.Exec(ch)
+			err := c.exec(ch)
 			if err != nil {
 				fmt.Println(c, err)
 				return

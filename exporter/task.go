@@ -4,7 +4,7 @@ import "github.com/prometheus/client_golang/prometheus"
 
 const namespace = "zjt"
 
-type Action struct {
+type Task struct {
 	desc map[string]*prometheus.Desc
 	name string
 	unit string // total, bytes,seconds,ratio (percent) https://prometheus.io/docs/practices/naming/
@@ -19,11 +19,12 @@ type sendch struct {
 	metric prometheus.Metric
 }
 
-func newAction() *Action {
-	return &Action{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100)}
+func newTask() *Task {
+	return &Task{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100)}
 }
 
-func (a *Action) CreateMetric(name, unit string) *Action {
+// unit: total, bytes,seconds,ratio (percent)
+func (a *Task) CreateMetric(name, unit string) *Task {
 	a.idx = 0
 	a.name = name
 	a.unit = unit
@@ -34,7 +35,7 @@ func (a *Action) CreateMetric(name, unit string) *Action {
 
 }
 
-func (a *Action) SetLabel(name, value string) *Action {
+func (a *Task) SetLabel(name, value string) *Task {
 
 	a.labelName[a.idx] = name
 	a.labelValue[a.idx] = value
@@ -43,19 +44,19 @@ func (a *Action) SetLabel(name, value string) *Action {
 	return a
 
 }
-func (a *Action) SetHelp(help string) *Action {
+func (a *Task) SetHelp(help string) *Task {
 	a.help = help
 	return a
 }
 
-func (a *Action) SendGauge(v float64) {
+func (a *Task) SendGauge(v float64) {
 	a.Send(prometheus.GaugeValue, v)
 }
-func (a *Action) SendCounter(v float64) {
+func (a *Task) SendCounter(v float64) {
 	a.Send(prometheus.CounterValue, v)
 }
 
-func (a *Action) Send(valueType prometheus.ValueType, value float64) {
+func (a *Task) Send(valueType prometheus.ValueType, value float64) {
 
 	var labelName []string
 	var labelValue []string
