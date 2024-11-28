@@ -4,10 +4,10 @@ import "github.com/prometheus/client_golang/prometheus"
 
 var namespace = "zjt"
 
-type Task struct {
+type Metric struct {
 	desc map[string]*prometheus.Desc
 	name string
-	unit string // total, bytes,seconds,ratio (percent) https://prometheus.io/docs/practices/naming/
+	unit string // total, bytes, seconds, info, ratio (percent) https://prometheus.io/docs/practices/naming/
 
 	labelName  []string
 	labelValue []string
@@ -19,12 +19,12 @@ type sendch struct {
 	metric prometheus.Metric
 }
 
-func newTask() *Task {
-	return &Task{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100)}
+func newMetric() *Metric {
+	return &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100)}
 }
 
-// unit: total, bytes,seconds,ratio (percent)
-func (a *Task) CreateMetric(name, unit string) *Task {
+// unit: total, bytes, seconds, info, ratio (percent)
+func (a *Metric) Create(name, unit string) *Metric {
 	a.idx = 0
 	a.name = name
 	a.unit = unit
@@ -35,7 +35,7 @@ func (a *Task) CreateMetric(name, unit string) *Task {
 
 }
 
-func (a *Task) SetLabel(name, value string) *Task {
+func (a *Metric) SetLabel(name, value string) *Metric {
 
 	a.labelName[a.idx] = name
 	a.labelValue[a.idx] = value
@@ -44,24 +44,24 @@ func (a *Task) SetLabel(name, value string) *Task {
 	return a
 
 }
-func (a *Task) SetHelp(help string) *Task {
+func (a *Metric) SetHelp(help string) *Metric {
 	a.help = help
 	return a
 }
 
-func (a *Task) SendGauge(v float64) {
+func (a *Metric) SendGauge(v float64) {
 	a.Send(prometheus.GaugeValue, v)
 }
-func (a *Task) SendCounter(v float64) {
+func (a *Metric) SendCounter(v float64) {
 	a.Send(prometheus.CounterValue, v)
 }
-func (a *Task) Send(valueType prometheus.ValueType, value float64) {
+func (a *Metric) Send(valueType prometheus.ValueType, value float64) {
 	a.send(namespace, valueType, value)
 }
-func (a *Task) SendWithoutNs(valueType prometheus.ValueType, value float64) {
+func (a *Metric) SendWithoutNs(valueType prometheus.ValueType, value float64) {
 	a.send("", valueType, value)
 }
-func (a *Task) send(namespace string, valueType prometheus.ValueType, value float64) {
+func (a *Metric) send(namespace string, valueType prometheus.ValueType, value float64) {
 
 	var labelName []string
 	var labelValue []string

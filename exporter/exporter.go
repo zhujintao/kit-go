@@ -14,9 +14,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-type Metric = prometheus.Metric
 type Collector interface {
-	exec(ch chan<- prometheus.Metric) error
+	Exec(ch chan<- prometheus.Metric) error
 }
 
 var (
@@ -44,22 +43,22 @@ var (
 type collector struct {
 	name    string
 	running map[string]bool
-	task    *Task
-	fn      func(action *Task) error
+	metric  *Metric
+	fn      func(metric *Metric) error
 }
 
 func (c *collector) AddFlag(flag ...cli.Flag) {
 	app.Flags = append(app.Flags, flag...)
 }
 
-func (c *collector) CallFunc(fn func(action *Task) error) {
+func (c *collector) CallFunc(fn func(metric *Metric) error) {
 
 	c.fn = fn
 }
 
-func (c *collector) exec(ch chan<- Metric) error {
-	c.task.ch = ch
-	return c.fn(c.task)
+func (c *collector) Exec(ch chan<- prometheus.Metric) error {
+	c.metric.ch = ch
+	return c.fn(c.metric)
 }
 
 func (c *collector) RegistryCollector() {
@@ -70,8 +69,8 @@ func (c *collector) RegistryCollector() {
 func New(name string) *collector {
 
 	return &collector{
-		name: name,
-		task: newTask(),
+		name:   name,
+		metric: newMetric(),
 	}
 }
 
@@ -122,8 +121,8 @@ func RegistryFactory(collector string, factory func() (Collector, error), help .
 }
 
 type exporter struct {
-	name string
-	task *Task
+	name   string
+	metric *Metric
 }
 
 func NewApp(appName ...string) *exporter {
@@ -148,21 +147,21 @@ func NewApp(appName ...string) *exporter {
 	for c := range maps.Keys(collectors) {
 		fmt.Printf("\t%s\n", c)
 	}
-	return &exporter{name: app.Name, task: newTask()}
+	return &exporter{name: app.Name, metric: newMetric()}
 }
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
-	e.task.ch = ch
+	e.metric.ch = ch
 
-	e.task.CreateMetric(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
+	e.metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
 	var wg sync.WaitGroup
 	for name, c := range collectors {
 
 		wg.Add(1)
 		go func(name string, c Collector) {
 			defer wg.Done()
-			err := c.exec(ch)
+			err := c.Exec(ch)
 			if err != nil {
 				fmt.Println(c, err)
 				return
