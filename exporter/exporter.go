@@ -51,8 +51,7 @@ func (c *collector) AddFlag(flag ...cli.Flag) {
 	app.Flags = append(app.Flags, flag...)
 }
 
-func (c *collector) CallFunc(fn func(metric *Metric) error) {
-
+func (c *collector) CallbackFunc(fn func(metric *Metric) error) {
 	c.fn = fn
 }
 
