@@ -2,7 +2,7 @@ package exporter
 
 import "github.com/prometheus/client_golang/prometheus"
 
-const namespace = "zjt"
+var namespace = "zjt"
 
 type Task struct {
 	desc map[string]*prometheus.Desc
@@ -55,8 +55,13 @@ func (a *Task) SendGauge(v float64) {
 func (a *Task) SendCounter(v float64) {
 	a.Send(prometheus.CounterValue, v)
 }
-
 func (a *Task) Send(valueType prometheus.ValueType, value float64) {
+	a.send(namespace, valueType, value)
+}
+func (a *Task) SendWithoutNs(valueType prometheus.ValueType, value float64) {
+	a.send("", valueType, value)
+}
+func (a *Task) send(namespace string, valueType prometheus.ValueType, value float64) {
 
 	var labelName []string
 	var labelValue []string

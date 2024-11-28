@@ -53,10 +53,12 @@ func (c *collector) AddFlag(flag ...cli.Flag) {
 }
 
 func (c *collector) CallFunc(fn func(action *Task) error) {
+
 	c.fn = fn
 }
 
 func (c *collector) exec(ch chan<- Metric) error {
+	c.task.ch = ch
 	return c.fn(c.task)
 }
 
@@ -121,6 +123,7 @@ func RegistryFactory(collector string, factory func() (Collector, error), help .
 
 type exporter struct {
 	name string
+	task *Task
 }
 
 func NewApp(appName ...string) *exporter {
@@ -145,12 +148,14 @@ func NewApp(appName ...string) *exporter {
 	for c := range maps.Keys(collectors) {
 		fmt.Printf("\t%s\n", c)
 	}
-	return &exporter{name: app.Name}
+	return &exporter{name: app.Name, task: newTask()}
 }
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
-func (exporter) Collect(ch chan<- prometheus.Metric) {
+func (e *exporter) Collect(ch chan<- prometheus.Metric) {
+	e.task.ch = ch
 
+	e.task.CreateMetric(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
 	var wg sync.WaitGroup
 	for name, c := range collectors {
 
@@ -168,7 +173,10 @@ func (exporter) Collect(ch chan<- prometheus.Metric) {
 	wg.Wait()
 
 }
-
+func (e *exporter) Namespace(n string) *exporter {
+	namespace = n
+	return e
+}
 func (e *exporter) Run() {
 	prometheus.Unregister(promcollectors.NewGoCollector())
 	prometheus.Unregister(promcollectors.NewProcessCollector(promcollectors.ProcessCollectorOpts{PidFn: func() (int, error) {
