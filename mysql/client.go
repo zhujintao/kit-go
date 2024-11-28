@@ -11,6 +11,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/schema"
 	"github.com/juju/errors"
+	"github.com/zhujintao/kit-go/ssh"
 )
 
 type Conn struct {
@@ -34,7 +35,20 @@ func NewClient(cfg *Config) *Conn {
 
 }
 
-func NewViaSSHClient(sshAddr, sshUser, sshPassword string, cfg *Config) {
+func NewViaSSHClient(sshAddr, sshUser, sshPassword string, cfg *Config) *Conn {
+	sshcon, err := ssh.NewConn(sshAddr, sshUser, sshPassword)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	viasshDialer := func(ctx context.Context, network, address string) (net.Conn, error) {
+		return sshcon.Dial(network, address)
+	}
+	c := new(Conn)
+	cfg.Dialer = viasshDialer
+	c.cfg = cfg
+	c.ctx, c.cancel = context.WithCancel(context.Background())
+	return c
 
 }
 
