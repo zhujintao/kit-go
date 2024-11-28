@@ -35,7 +35,7 @@ func NewClient(cfg *Config) *Conn {
 
 }
 
-func NewViaSSHClient(sshAddr, sshUser, sshPassword string, cfg *Config) *Conn {
+func NewClientViaSSH(sshAddr, sshUser, sshPassword string, cfg *Config) *Conn {
 	sshcon, err := ssh.NewConn(sshAddr, sshUser, sshPassword)
 	if err != nil {
 		fmt.Println(err)
