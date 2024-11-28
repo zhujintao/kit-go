@@ -5,7 +5,7 @@ go 1.23.3
 require (
 	github.com/go-mysql-org/go-mysql v1.9.1
 	github.com/juju/errors v1.0.0
-	github.com/zhujintao/kit-go/ssh v0.0.0-20241128123741-2986a660c99b
+	github.com/zhujintao/kit-go/ssh v0.0.0-20241128124824-48e159b79060
 )
 
 require (

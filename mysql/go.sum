@@ -46,6 +46,8 @@ github.com/zhujintao/kit-go/ssh v0.0.0-20241128123054-1df45c2c492d h1:sRflDVoMzP
 github.com/zhujintao/kit-go/ssh v0.0.0-20241128123054-1df45c2c492d/go.mod h1:oyBIVJhUINQ/BocN6+HOVR7u7cL7mxUrqkIakMzN99Y=
 github.com/zhujintao/kit-go/ssh v0.0.0-20241128123741-2986a660c99b h1:Tkbm4bZ1Su5OUnbG9tvFXCDdfbPjhLFJT02sdGv4Q+M=
 github.com/zhujintao/kit-go/ssh v0.0.0-20241128123741-2986a660c99b/go.mod h1:oyBIVJhUINQ/BocN6+HOVR7u7cL7mxUrqkIakMzN99Y=
+github.com/zhujintao/kit-go/ssh v0.0.0-20241128124824-48e159b79060 h1:nKKCvyIkIdYxeQkJtB5TMHes/FWdeWtm4N4mjWgmpzg=
+github.com/zhujintao/kit-go/ssh v0.0.0-20241128124824-48e159b79060/go.mod h1:oyBIVJhUINQ/BocN6+HOVR7u7cL7mxUrqkIakMzN99Y=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
