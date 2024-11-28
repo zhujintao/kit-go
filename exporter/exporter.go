@@ -66,7 +66,7 @@ func (c *collector) RegistryCollector() {
 	RegistryCollector(c.name, c)
 }
 
-func New(name string) *collector {
+func NewCollector(name string) *collector {
 
 	return &collector{
 		name:   name,
