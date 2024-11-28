@@ -34,6 +34,10 @@ func NewClient(cfg *Config) *Conn {
 
 }
 
+func NewViaSSHClient(sshAddr, sshUser, sshPassword string, cfg *Config) {
+
+}
+
 func (c *Conn) GetTableInfo(db, table string) (*schema.Table, error) {
 	return schema.NewTable(c, db, table)
 
