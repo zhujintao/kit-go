@@ -51,7 +51,8 @@ func (c *collector) AddFlag(flag ...cli.Flag) {
 	app.Flags = append(app.Flags, flag...)
 }
 
-func (c *collector) CallbackFunc(fn func(metric *Metric) error) {
+// CallFunc collects data from fn logic, metric sned prometheus metric.
+func (c *collector) CallFunc(fn func(metric *Metric) error) {
 	c.fn = fn
 }
 
