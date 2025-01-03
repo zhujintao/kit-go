@@ -105,6 +105,9 @@ func NewCollector(name string) *Collector {
 
 func RegCollector(fs ...func() *Collector) {
 	for _, f := range fs {
+		if f == nil {
+			continue
+		}
 		c := f()
 		c.RegCollector()
 	}
