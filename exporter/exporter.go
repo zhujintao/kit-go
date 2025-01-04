@@ -116,16 +116,18 @@ func (c *Collector) Register(help ...string) {
 	flag := &cli.BoolFlag{Name: flagName, Category: "collectors:", Usage: flagHelp, HideDefault: true, Action: func(ctx context.Context, cc *cli.Command, b bool) error {
 
 		if b {
+			for _, flag := range flagCheck[c.name] {
+				if !slices.Contains(cc.FlagNames(), flag) {
+					return fmt.Errorf("collector [%s] require flag: --%s ", c.name, flag)
+				}
+			}
 			if c.fn != nil {
+
 				c.fn(c)
 			}
 			collectors[c.name] = c
 		}
-		for _, flag := range flagCheck[c.name] {
-			if !slices.Contains(cc.FlagNames(), flag) {
-				return fmt.Errorf("collector [%s] require flag: --%s ", c.name, flag)
-			}
-		}
+
 		return nil
 	}}
 	app.Flags = append(app.Flags, flag)
