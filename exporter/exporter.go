@@ -59,7 +59,7 @@ func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 
 type Collector struct {
 	name     string
-	fn       func(*Collector)
+	fn       func(*Collector) error
 	metric   *Metric
 	callFunc func(metric *Metric)
 }
@@ -70,7 +70,7 @@ func NewCollector(name string) *Collector {
 		metric: newMetric(),
 	}
 }
-func (c *Collector) Do(fn func(*Collector)) {
+func (c *Collector) Do(fn func(*Collector) error) {
 	c.fn = fn
 }
 func (c *Collector) CallFunc(fn func(metric *Metric)) {
@@ -123,7 +123,9 @@ func (c *Collector) Register(help ...string) {
 			}
 			if c.fn != nil {
 
-				c.fn(c)
+				if err := c.fn(c); err != nil {
+					return err
+				}
 			}
 			collectors[c.name] = c
 		}
