@@ -78,10 +78,14 @@ func (c *Collector) CallFunc(fn func(metric *Metric)) {
 }
 
 // use v3 "github.com/urfave/cli/v3"
-func (c *Collector) AddFlag(flag cli.Flag, required bool) {
+func (c *Collector) AddFlag(flag cli.Flag, required ...bool) {
 	f := reflect.ValueOf(flag).Elem().FieldByName("Name")
 	f.Set(reflect.ValueOf(c.name + "-" + f.String()))
-	if required {
+	var req bool
+	if len(required) == 1 {
+		req = required[0]
+	}
+	if req {
 		flagCheck[c.name] = append(flagCheck[c.name], f.String())
 	}
 
