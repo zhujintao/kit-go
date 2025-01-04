@@ -148,7 +148,7 @@ func NewApp(appName ...string) *exporter {
 func (e *exporter) Run() {
 
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("Error: ", err)
 		os.Exit(0)
 	}
 	if len(collectors) == 0 {
