@@ -92,6 +92,10 @@ func (c *Collector) AddFlag(flag cli.Flag, required ...bool) {
 	app.Flags = append(app.Flags, flag)
 }
 
+func (c *Collector) GetValue(flagName string) interface{} {
+	return app.Value(flagName)
+}
+
 func (c *Collector) exec(ch chan<- prometheus.Metric) {
 	c.metric.ch = ch
 	if c.callFunc == nil {
