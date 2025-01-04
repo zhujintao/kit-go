@@ -93,7 +93,7 @@ func (c *Collector) AddFlag(flag cli.Flag, required ...bool) {
 }
 
 func (c *Collector) GetValue(flagName string) interface{} {
-	return app.Value(flagName)
+	return app.Value(c.name + "-" + flagName)
 }
 
 func (c *Collector) exec(ch chan<- prometheus.Metric) {
