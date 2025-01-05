@@ -45,8 +45,8 @@ type exporter struct {
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 	e.metric.ch = ch
-
-	e.metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
+	hostname, _ := os.Hostname()
+	e.metric.Create(e.name, "up").SetLabel("hostname", hostname).SendWithoutNs(prometheus.GaugeValue, 1)
 	var wg sync.WaitGroup
 	for name, c := range collectors {
 
