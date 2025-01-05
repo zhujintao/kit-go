@@ -38,11 +38,15 @@ var (
 )
 
 type exporter struct {
-	name string
+	name   string
+	metric *Metric
 }
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
+	e.metric.ch = ch
+
+	e.metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
 	var wg sync.WaitGroup
 	for name, c := range collectors {
 
@@ -142,7 +146,7 @@ func NewApp(appName ...string) *exporter {
 		app.Name = appName[0]
 
 	}
-	return &exporter{name: app.Name}
+	return &exporter{name: app.Name, metric: newMetric()}
 }
 
 func (e *exporter) Run() {
@@ -167,6 +171,8 @@ func (e *exporter) Run() {
 
 	http.Handle("/metrics", promhttp.Handler())
 	fmt.Println("Starting "+e.name, "listen", listen)
-	http.ListenAndServe(listen, nil)
+	if err := http.ListenAndServe(listen, nil); err != nil {
+		fmt.Println(err)
+	}
 
 }
