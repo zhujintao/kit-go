@@ -4,7 +4,7 @@ go 1.23.3
 
 require (
 	github.com/prometheus/client_golang v1.20.5
-	github.com/urfave/cli/v3 v3.0.0-alpha9.6
+	github.com/urfave/cli/v3 v3.0.0-alpha9.7
 )
 
 require (
