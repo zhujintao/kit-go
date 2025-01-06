@@ -63,9 +63,9 @@ func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 
 type Collector struct {
 	name     string
-	fn       func(*Collector) error
+	fn       []func(*Collector) error
 	metric   *Metric
-	callFunc func(metric *Metric)
+	callFunc []func(metric *Metric)
 }
 
 func NewCollector(name string) *Collector {
@@ -75,10 +75,11 @@ func NewCollector(name string) *Collector {
 	}
 }
 func (c *Collector) Do(fn func(*Collector) error) {
-	c.fn = fn
+	c.fn = append(c.fn, fn)
 }
 func (c *Collector) CallFunc(fn func(metric *Metric)) {
-	c.callFunc = fn
+	c.callFunc = append(c.callFunc, fn)
+
 }
 
 // use v3 "github.com/urfave/cli/v3"
@@ -102,11 +103,18 @@ func (c *Collector) GetValue(flagName string) interface{} {
 
 func (c *Collector) exec(ch chan<- prometheus.Metric) {
 	c.metric.ch = ch
-	if c.callFunc == nil {
+	if len(c.callFunc) == 0 {
 		return
 	}
-	c.callFunc(c.metric)
-
+	var wg sync.WaitGroup
+	for _, f := range c.callFunc {
+		wg.Add(1)
+		go func(f func(metric *Metric)) {
+			defer wg.Done()
+			f(c.metric)
+		}(f)
+	}
+	wg.Wait()
 }
 
 func (c *Collector) Register(help ...string) {
@@ -125,9 +133,13 @@ func (c *Collector) Register(help ...string) {
 					return fmt.Errorf("collector [%s] require flag: --%s ", c.name, flag)
 				}
 			}
-			if c.fn != nil {
 
-				if err := c.fn(c); err != nil {
+			if len(c.fn) == 0 {
+				return nil
+			}
+
+			for _, f := range c.fn {
+				if err := f(c); err != nil {
 					return err
 				}
 			}

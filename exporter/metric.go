@@ -1,6 +1,12 @@
 package exporter
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"fmt"
+	"strings"
+	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 var namespace = "zjt"
 
@@ -14,13 +20,14 @@ type Metric struct {
 	idx        int
 	help       string
 	ch         chan<- prometheus.Metric
+	l          sync.Mutex
 }
 type sendch struct {
 	metric prometheus.Metric
 }
 
 func newMetric() *Metric {
-	return &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100)}
+	return &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100), l: sync.Mutex{}}
 }
 
 // unit: total, bytes, seconds, info, ratio (percent)
@@ -83,10 +90,13 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		a.help,
 		labelName,
 		nil)
-	if d, ok := a.desc[desc.String()]; ok {
+	if d, ok := a.desc[desc.String()+strings.Join(labelValue, "")]; ok {
+		fmt.Println(desc.String() + strings.Join(labelValue, ""))
 		a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
 		return
 	}
-	a.desc[desc.String()] = desc
+	a.l.Lock()
+	a.desc[desc.String()+strings.Join(labelValue, "")] = desc
+	defer a.l.Unlock()
 
 }
