@@ -1,7 +1,6 @@
 package exporter
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
@@ -91,7 +90,6 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		labelName,
 		nil)
 	if d, ok := a.desc[desc.String()+strings.Join(labelValue, "")]; ok {
-		fmt.Println(desc.String() + strings.Join(labelValue, ""))
 		a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
 		return
 	}
