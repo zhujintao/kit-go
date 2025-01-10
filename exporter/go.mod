@@ -5,6 +5,7 @@ go 1.23.3
 require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/urfave/cli/v3 v3.0.0-alpha9.7
+	github.com/zhujintao/kit-go/utils v0.0.0-20250110021217-e0a0e76af011
 )
 
 require (

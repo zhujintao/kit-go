@@ -178,7 +178,9 @@ func (e *exporter) Run() {
 	}}))
 
 	http.Handle("/metrics", promhttp.Handler())
+
 	fmt.Println("Starting "+e.name, "listen", listen)
+
 	if err := http.ListenAndServe(listen, nil); err != nil {
 		fmt.Println(err)
 	}
