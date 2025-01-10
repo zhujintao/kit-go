@@ -78,6 +78,7 @@ func (c *Collector) Do(fn func(*Collector) error) {
 	c.fn = append(c.fn, fn)
 }
 func (c *Collector) CallFunc(fn func(metric *Metric)) {
+
 	c.callFunc = append(c.callFunc, fn)
 
 }
@@ -132,10 +133,6 @@ func (c *Collector) Register(help ...string) {
 				if !slices.Contains(cc.FlagNames(), flag) {
 					return fmt.Errorf("collector [%s] require flag: --%s ", c.name, flag)
 				}
-			}
-
-			if len(c.fn) == 0 {
-				return nil
 			}
 
 			for _, f := range c.fn {
