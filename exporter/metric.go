@@ -9,6 +9,8 @@ import (
 
 var namespace = "zjt"
 
+var MetricGlobalLable map[string]string = map[string]string{}
+
 type Metric struct {
 	desc map[string]*prometheus.Desc
 	name string
@@ -37,6 +39,7 @@ func (a *Metric) Create(name, unit string) *Metric {
 	a.help = ""
 	a.labelName = make([]string, 100)
 	a.labelValue = make([]string, 100)
+
 	return a
 
 }
@@ -84,6 +87,11 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		labelValue = append(labelValue, v)
 	}
 
+	for k, v := range MetricGlobalLable {
+		labelName = append(labelName, k)
+		labelValue = append(labelValue, v)
+	}
+
 	desc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.name, a.unit),
 		a.help,
@@ -93,8 +101,7 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
 		return
 	}
-	a.l.Lock()
+
 	a.desc[desc.String()+strings.Join(labelValue, "")] = desc
-	defer a.l.Unlock()
 
 }
