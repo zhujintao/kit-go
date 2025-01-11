@@ -1,6 +1,7 @@
 package exporter
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -48,6 +49,7 @@ func (a *Metric) SetLabel(name, value string) *Metric {
 
 	a.labelName[a.idx] = name
 	a.labelValue[a.idx] = value
+
 	a.idx++
 
 	return a
@@ -74,24 +76,27 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 
 	var labelName []string
 	var labelValue []string
-	for _, v := range a.labelName {
-		if v == "" {
-			continue
-		}
-		labelName = append(labelName, v)
-	}
-	for _, v := range a.labelValue {
-		if v == "" {
-			continue
-		}
-		labelValue = append(labelValue, v)
-	}
 
 	for k, v := range MetricGlobalLable {
-		labelName = append(labelName, k)
-		labelValue = append(labelValue, v)
+
+		a.labelName[a.idx] = k
+		a.labelValue[a.idx] = v
+		a.idx++
+
 	}
 
+	for i := range a.labelName {
+		if a.labelName[i] == "" {
+			continue
+		}
+
+		labelName = append(labelName, a.labelName[i])
+		labelValue = append(labelValue, a.labelValue[i])
+	}
+	if len(labelName) != len(labelValue) {
+		fmt.Printf("inconsistent label cardinality: expected %d label values but got %d in %v\n", len(labelName), len(labelValue), labelValue)
+		return
+	}
 	desc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.name, a.unit),
 		a.help,
@@ -102,6 +107,6 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		return
 	}
 
-	a.desc[desc.String()+strings.Join(labelValue, "")] = desc
+	a.desc[desc.String()+strings.Join(a.labelValue, "")] = desc
 
 }
