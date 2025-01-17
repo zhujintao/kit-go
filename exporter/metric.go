@@ -2,6 +2,7 @@ package exporter
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -79,8 +80,12 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 
 	for k, v := range MetricGlobalLable {
 
+		if slices.Contains(a.labelName, k) {
+			continue
+		}
 		a.labelName[a.idx] = k
 		a.labelValue[a.idx] = v
+
 		a.idx++
 
 	}
