@@ -114,23 +114,22 @@ func (c *Collector) exec(ch chan<- prometheus.Metric) {
 	var wg sync.WaitGroup
 	for _, f := range c.callFunc {
 		wg.Add(1)
-		go func(f func(metric *Metric)) {
+		go func(f func(metric *Metric), m *Metric) {
 			defer wg.Done()
 			ctx, done := context.WithCancel(context.Background())
-			go func() {
-				f(c.metric)
+			go func(f func(metric *Metric), m *Metric) {
+				f(m)
 				done()
-			}()
+			}(f, m)
 			select {
 			case <-time.NewTimer(time.Second * 10).C:
-				c.metric.cacel = true
+				m.cacel = true
 				return
 			case <-ctx.Done():
 				return
-
 			}
 
-		}(f)
+		}(f, c.metric)
 	}
 	wg.Wait()
 }

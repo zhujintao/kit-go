@@ -48,11 +48,10 @@ func (a *Metric) Create(name, unit string) *Metric {
 }
 
 func (a *Metric) SetLabel(name, value string) *Metric {
-	a.l.Lock()
+
 	a.labelName[a.idx] = name
 	a.labelValue[a.idx] = value
 	a.idx++
-	a.l.Unlock()
 	return a
 
 }
