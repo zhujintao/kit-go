@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	promcollectors "github.com/prometheus/client_golang/prometheus/collectors"
@@ -44,9 +45,12 @@ type exporter struct {
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
+
 	e.metric.ch = ch
 	e.metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
+
 	var wg sync.WaitGroup
+
 	for name, c := range collectors {
 
 		wg.Add(1)
@@ -106,12 +110,26 @@ func (c *Collector) exec(ch chan<- prometheus.Metric) {
 	if len(c.callFunc) == 0 {
 		return
 	}
+
 	var wg sync.WaitGroup
 	for _, f := range c.callFunc {
 		wg.Add(1)
 		go func(f func(metric *Metric)) {
 			defer wg.Done()
-			f(c.metric)
+			ctx, done := context.WithCancel(context.Background())
+			go func() {
+				f(c.metric)
+				done()
+			}()
+			select {
+			case <-time.NewTimer(time.Second * 10).C:
+				c.metric.cacel = true
+				return
+			case <-ctx.Done():
+				return
+
+			}
+
 		}(f)
 	}
 	wg.Wait()

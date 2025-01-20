@@ -24,6 +24,7 @@ type Metric struct {
 	help       string
 	ch         chan<- prometheus.Metric
 	l          sync.Mutex
+	cacel      bool
 }
 type sendch struct {
 	metric prometheus.Metric
@@ -108,6 +109,9 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		labelName,
 		nil)
 	if d, ok := a.desc[desc.String()+strings.Join(labelValue, "")]; ok {
+		if a.cacel {
+			return
+		}
 		a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
 		return
 	}
