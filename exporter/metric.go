@@ -48,12 +48,11 @@ func (a *Metric) Create(name, unit string) *Metric {
 }
 
 func (a *Metric) SetLabel(name, value string) *Metric {
-
+	a.l.Lock()
 	a.labelName[a.idx] = name
 	a.labelValue[a.idx] = value
-
 	a.idx++
-
+	a.l.Unlock()
 	return a
 
 }
@@ -84,9 +83,9 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		if slices.Contains(a.labelName, k) {
 			continue
 		}
+
 		a.labelName[a.idx] = k
 		a.labelValue[a.idx] = v
-
 		a.idx++
 
 	}
@@ -112,6 +111,7 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		if a.cacel {
 			return
 		}
+
 		a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
 		return
 	}
