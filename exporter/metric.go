@@ -106,9 +106,8 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		labelName,
 		nil)
 
-	key := desc.String() + strings.Join(labelValue, "")
-
 	a.l.RLock()
+	key := desc.String() + strings.Join(labelValue, "")
 	d, ok := a.desc[key]
 	a.l.RUnlock()
 

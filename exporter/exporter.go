@@ -36,6 +36,7 @@ var (
 		CustomRootCommandHelpTemplate: help_v3,
 		Usage:                         "a metrics all in one kit, base prometheus.",
 	}
+	l sync.Locker = &sync.RWMutex{}
 )
 
 type exporter struct {
@@ -45,7 +46,8 @@ type exporter struct {
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
-
+	l.Lock()
+	defer l.Unlock()
 	e.metric.ch = ch
 	e.metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
 
