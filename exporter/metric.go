@@ -23,7 +23,7 @@ type Metric struct {
 	idx        int
 	help       string
 	ch         chan<- prometheus.Metric
-	l          sync.Mutex
+	l          sync.RWMutex
 	cacel      bool
 }
 type sendch struct {
@@ -31,7 +31,7 @@ type sendch struct {
 }
 
 func newMetric() *Metric {
-	return &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100), l: sync.Mutex{}}
+	return &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100), l: sync.RWMutex{}}
 }
 
 // unit: total, bytes, seconds, info, ratio (percent)
@@ -42,7 +42,6 @@ func (a *Metric) Create(name, unit string) *Metric {
 	a.help = ""
 	a.labelName = make([]string, 100)
 	a.labelValue = make([]string, 100)
-
 	return a
 
 }
@@ -106,15 +105,24 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		a.help,
 		labelName,
 		nil)
-	if d, ok := a.desc[desc.String()+strings.Join(labelValue, "")]; ok {
-		if a.cacel {
-			return
-		}
 
-		a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
+	key := desc.String() + strings.Join(labelValue, "")
+
+	a.l.RLock()
+	d, ok := a.desc[key]
+	a.l.RUnlock()
+
+	if !ok {
+		a.l.Lock()
+		a.desc[desc.String()+strings.Join(a.labelValue, "")] = desc
+		a.l.Unlock()
 		return
 	}
 
-	a.desc[desc.String()+strings.Join(a.labelValue, "")] = desc
+	if a.cacel {
+		return
+	}
+
+	a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
 
 }
