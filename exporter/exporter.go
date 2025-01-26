@@ -40,17 +40,15 @@ var (
 )
 
 type exporter struct {
-	name   string
-	metric *Metric
+	name string
 }
 
 func (exporter) Describe(ch chan<- *prometheus.Desc) {}
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
-	l.Lock()
-	defer l.Unlock()
-	e.metric.ch = ch
-	e.metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
 
+	metric := NewMetric(ch)
+	metric.Create(e.name, "up").SendWithoutNs(prometheus.GaugeValue, 1)
+	metric = nil
 	var wg sync.WaitGroup
 
 	for name, c := range collectors {
@@ -67,24 +65,26 @@ func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 type Collector struct {
-	name     string
-	fn       []func(*Collector) error
-	metric   *Metric
+	name string
+	fn   []func(*Collector) error
+	//metric   *Metric
 	callFunc []func(metric *Metric)
 }
 
 func NewCollector(name string) *Collector {
 	return &Collector{
-		name:   name,
-		metric: newMetric(),
+		name: name,
+		//metric: newMetric(),
 	}
 }
-func (c *Collector) Do(fn func(*Collector) error) {
+func (c *Collector) Do(fn func(*Collector) error) *Collector {
 	c.fn = append(c.fn, fn)
+	return c
 }
-func (c *Collector) CallFunc(fn func(metric *Metric)) {
+func (c *Collector) CallFunc(fn func(metric *Metric)) *Collector {
 
 	c.callFunc = append(c.callFunc, fn)
+	return c
 
 }
 
@@ -108,11 +108,12 @@ func (c *Collector) GetValue(flagName string) interface{} {
 }
 
 func (c *Collector) exec(ch chan<- prometheus.Metric) {
-	c.metric.ch = ch
+
+	//c.metric.ch = ch
 	if len(c.callFunc) == 0 {
 		return
 	}
-
+	metric := &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100), ch: ch}
 	var wg sync.WaitGroup
 	for _, f := range c.callFunc {
 		wg.Add(1)
@@ -131,9 +132,10 @@ func (c *Collector) exec(ch chan<- prometheus.Metric) {
 				return
 			}
 
-		}(f, c.metric)
+		}(f, metric)
 	}
 	wg.Wait()
+	metric = nil
 }
 
 func (c *Collector) Register(help ...string) {
@@ -173,7 +175,7 @@ func NewApp(appName ...string) *exporter {
 		app.Name = appName[0]
 
 	}
-	return &exporter{name: app.Name, metric: newMetric()}
+	return &exporter{name: app.Name}
 }
 
 func (e *exporter) Run() {

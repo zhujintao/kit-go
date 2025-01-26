@@ -3,8 +3,6 @@ package exporter
 import (
 	"fmt"
 	"slices"
-	"strings"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -23,19 +21,20 @@ type Metric struct {
 	idx        int
 	help       string
 	ch         chan<- prometheus.Metric
-	l          sync.RWMutex
-	cacel      bool
+
+	cacel bool
 }
 type sendch struct {
 	metric prometheus.Metric
 }
 
-func newMetric() *Metric {
-	return &Metric{desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100), l: sync.RWMutex{}}
+func NewMetric(ch chan<- prometheus.Metric) *Metric {
+	return &Metric{ch: ch, desc: make(map[string]*prometheus.Desc), labelName: make([]string, 100), labelValue: make([]string, 100)}
 }
 
 // unit: total, bytes, seconds, info, ratio (percent)
 func (a *Metric) Create(name, unit string) *Metric {
+
 	a.idx = 0
 	a.name = name
 	a.unit = unit
@@ -62,8 +61,10 @@ func (a *Metric) SetHelp(help string) *Metric {
 func (a *Metric) SendGauge(v float64) {
 	a.Send(prometheus.GaugeValue, v)
 }
+
 func (a *Metric) SendCounter(v float64) {
 	a.Send(prometheus.CounterValue, v)
+
 }
 func (a *Metric) Send(valueType prometheus.ValueType, value float64) {
 	a.send(namespace, valueType, value)
@@ -100,28 +101,31 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		fmt.Printf("inconsistent label cardinality: expected %d label values but got %d in %v\n", len(labelName), len(labelValue), labelValue)
 		return
 	}
+
 	desc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.name, a.unit),
 		a.help,
 		labelName,
 		nil)
 
-	a.l.RLock()
-	key := desc.String() + strings.Join(labelValue, "")
-	d, ok := a.desc[key]
-	a.l.RUnlock()
+	/*
+		a.l.RLock()
+		key := desc.String() + strings.Join(labelValue, "")
+		d, ok := a.desc[key]
+		a.l.RUnlock()
 
-	if !ok {
-		a.l.Lock()
-		a.desc[desc.String()+strings.Join(a.labelValue, "")] = desc
-		a.l.Unlock()
-		return
-	}
+		if !ok {
+			a.l.Lock()
+			a.desc[desc.String()+strings.Join(a.labelValue, "")] = desc
+			a.l.Unlock()
+			return
+		}
+	*/
 
 	if a.cacel {
 		return
 	}
 
-	a.ch <- prometheus.MustNewConstMetric(d, valueType, value, labelValue...)
+	a.ch <- prometheus.MustNewConstMetric(desc, valueType, value, labelValue...)
 
 }
