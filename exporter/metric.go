@@ -72,20 +72,21 @@ func (a *Metric) Send(valueType prometheus.ValueType, value float64) {
 func (a *Metric) SendWithoutNs(valueType prometheus.ValueType, value float64) {
 	a.send("", valueType, value)
 }
+
 func (a *Metric) send(namespace string, valueType prometheus.ValueType, value float64) {
 
 	var labelName []string
 	var labelValue []string
-
+	var constLabels prometheus.Labels = make(prometheus.Labels)
 	for k, v := range MetricGlobalLable {
 
 		if slices.Contains(a.labelName, k) {
 			continue
 		}
-
-		a.labelName[a.idx] = k
-		a.labelValue[a.idx] = v
-		a.idx++
+		constLabels[k] = v
+		//a.labelName[a.idx] = k
+		//a.labelValue[a.idx] = v
+		//a.idx++
 
 	}
 
@@ -106,7 +107,7 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 		prometheus.BuildFQName(namespace, a.name, a.unit),
 		a.help,
 		labelName,
-		nil)
+		constLabels)
 
 	/*
 		a.l.RLock()
