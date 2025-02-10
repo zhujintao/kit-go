@@ -1,4 +1,4 @@
-module github.com/zhujintao/kit-go/rocketmq
+module github.com/zhujintao/kit-go/rocketmq/remote
 
 go 1.23.4
 
