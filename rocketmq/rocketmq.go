@@ -1,1 +1,3 @@
 package rocketmq
+
+func init() {}
