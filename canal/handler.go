@@ -57,7 +57,10 @@ func (h *defaultHandler) OnDDL(header *replication.EventHeader, nextPos mysql.Po
 	for _, table := range t.Tables {
 
 		key := table.Schema + "." + table.Name
-
+		// add CheckTableMatch to source code 284
+		// func (c *Canal) CheckTableMatch(key string) bool {
+		//	return c.checkTableMatch(key)
+		//	}
 		if !h.syncer.canal.CheckTableMatch(key) {
 			continue
 		}

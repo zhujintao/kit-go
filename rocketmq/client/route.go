@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
 import (
 	"context"
@@ -34,8 +34,8 @@ import (
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/rlog"
-	"github.com/zhujintao/kit-go/rocketmq/remote"
-	"github.com/zhujintao/kit-go/rocketmq/utils"
+	"github.com/zhujintao/kit-go/rocketmq/client/remote"
+	"github.com/zhujintao/kit-go/rocketmq/client/utils"
 )
 
 const (

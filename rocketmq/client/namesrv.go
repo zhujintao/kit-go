@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
 import (
 	"errors"
@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zhujintao/kit-go/rocketmq/remote"
+	"github.com/zhujintao/kit-go/rocketmq/client/remote"
 )
 
 const (
@@ -40,7 +40,7 @@ var (
 	ErrIllegalIP    = errors.New("IP addr error")
 )
 
-//go:generate mockgen -source namesrv.go -destination mock_namesrv.go -self_package github.com/zhujintao/kit-go/rocketmq  --package rocketmq Namesrvs
+//go:generate mockgen -source namesrv.go -destination mock_namesrv.go -self_package github.com/zhujintao/kit-go/rocketmq  --package client Namesrvs
 type Namesrvs interface {
 	UpdateNameServerAddress()
 

@@ -244,7 +244,11 @@ func (s *syncer) GetMasterInfo(path string) *masterInfo {
 func (s *syncer) Execute(cmd string, args ...interface{}) (rr *mysql.Result, err error) {
 	return s.canal.Execute(cmd, args...)
 }
+
 func (s *syncer) ExecuteSelectStreaming(cmd string, perRowCallback func(row []gomysql.FieldValue) error, perResultCallback func(result *mysql.Result) error) (err error) {
+
+	//
+	//
 	return s.canal.ExecuteSelectStreaming(cmd, perRowCallback, perResultCallback)
 }
 func (s *syncer) GetMasterGTIDSet() (mysql.GTIDSet, error) {

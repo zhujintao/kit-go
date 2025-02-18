@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
 import (
 	"bytes"
@@ -30,7 +30,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/rlog"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/zhujintao/kit-go/rocketmq/utils"
+	"github.com/zhujintao/kit-go/rocketmq/client/utils"
 )
 
 type FindBrokerResult struct {

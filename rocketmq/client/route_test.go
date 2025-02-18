@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zhujintao/kit-go/rocketmq/remote"
+	"github.com/zhujintao/kit-go/rocketmq/client/remote"
 )
 
 func TestQueryTopicRouteInfoFromServer(t *testing.T) {

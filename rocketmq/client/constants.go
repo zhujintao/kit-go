@@ -15,32 +15,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
-import (
-	"errors"
-	"fmt"
-	"regexp"
-)
+import "strings"
 
 const (
-	_ValidPattern       = "^[%|a-zA-Z0-9_-]+$"
-	_CharacterMaxLength = 255
+	RetryGroupTopicPrefix    = "%RETRY%"
+	DefaultConsumerGroup     = "DEFAULT_CONSUMER"
+	ClientInnerProducerGroup = "CLIENT_INNER_PRODUCER"
+	SystemTopicPrefix        = "rmq_sys_"
+	ReplyMessageFlag         = "reply"
+	ReplyTopicPostfix        = "REPLY_TOPIC"
 )
 
-var (
-	_Pattern = regexp.MustCompile(_ValidPattern)
-)
+func GetReplyTopic(clusterName string) string {
+	return clusterName + "_" + ReplyTopicPostfix
+}
 
-func ValidateGroup(group string) error {
-	if group == "" {
-		return errors.New("consumerGroup is empty")
+func GetRetryTopic(group string) string {
+	if strings.HasPrefix(group, RetryGroupTopicPrefix) {
+		return group
 	}
-	if len(group) > _CharacterMaxLength {
-		return errors.New("the specified group is longer than group max length 255")
-	}
-	if !_Pattern.MatchString(group) {
-		return fmt.Errorf("the specified group[%s] contains illegal characters, allowing only %s", group, _ValidPattern)
-	}
-	return nil
+	return RetryGroupTopicPrefix + group
 }

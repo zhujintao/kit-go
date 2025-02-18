@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zhujintao/kit-go/rocketmq/utils"
+	"github.com/zhujintao/kit-go/rocketmq/client/utils"
 )
 
 func TestHeartbeatData(t *testing.T) {

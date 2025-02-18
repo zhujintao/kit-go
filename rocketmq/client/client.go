@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rocketmq
+package client
 
 import (
 	"context"
@@ -32,8 +32,8 @@ import (
 	errors2 "github.com/apache/rocketmq-client-go/v2/errors"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/rlog"
-	"github.com/zhujintao/kit-go/rocketmq/remote"
-	"github.com/zhujintao/kit-go/rocketmq/utils"
+	"github.com/zhujintao/kit-go/rocketmq/client/remote"
+	"github.com/zhujintao/kit-go/rocketmq/client/utils"
 )
 
 const (
@@ -134,7 +134,7 @@ func (opt *ClientOptions) String() string {
 		opt.InstanceName, opt.UnitMode, opt.UnitName, opt.VIPChannelEnabled)
 }
 
-//go:generate mockgen -source client.go -destination mock_client.go -self_package github.com/zhujintao/kit-go/rocketmq  --package rocketmq RMQClient
+//go:generate mockgen -source client.go -destination mock_client.go -self_package github.com/zhujintao/kit-go/rocketmq  --package client RMQClient
 type RMQClient interface {
 	Start()
 	Shutdown()
