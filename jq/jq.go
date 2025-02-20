@@ -9,9 +9,26 @@ import (
 	"github.com/itchyny/gojq"
 )
 
+func trimSpace(s string) string {
+
+	var ss []rune
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+
+			continue
+
+		}
+
+		ss = append(ss, r)
+
+	}
+	return string(ss)
+
+}
 func PickJson(text string, jsonPath string) string {
+
 	var runePath []rune
-	if strings.TrimSpace(jsonPath) == "{}" {
+	if trimSpace(jsonPath) == "{}" {
 		jsonPath = ""
 		runePath = append(runePath, '.')
 	}
@@ -44,7 +61,6 @@ func PickJson(text string, jsonPath string) string {
 	if len(sl) > 1 {
 
 		var jpath string
-
 		for i, v := range sl[:len(sl)-1] {
 
 			jpath = jpath + "." + v
