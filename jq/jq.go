@@ -25,6 +25,10 @@ func trimSpace(s string) string {
 	return string(ss)
 
 }
+
+// text is json string
+//
+// jsonPath get f1 and f2 path a:b:c:f1,f2 or {"a":"b":"c": "f1","f2"}
 func PickJson(text string, jsonPath string) string {
 
 	var runePath []rune
