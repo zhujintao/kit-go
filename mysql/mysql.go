@@ -6,14 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-mysql-org/go-mysql/client"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/schema"
 )
 
+const mysqlDateFormat = "2006-01-02"
+
 type FieldValue = mysql.FieldValue
 type TableInfo = schema.Table
+type TableColumn = schema.TableColumn
 type Dialer = client.Dialer
 
 // type Conn = client.Conn
@@ -26,6 +30,8 @@ type Config struct {
 	PoolMaxAlive int
 	Dialer       client.Dialer
 	TLSConfig    *tls.Config
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
 }
 
 func RewriteMysqlQueryColumn(c *Conn, schema, table string) string {
@@ -165,6 +171,10 @@ func ValueToString(col *schema.TableColumn, value interface{}) string {
 	return fmt.Sprintf("%v", vv)
 }
 
+func ValueToInterface(col *schema.TableColumn, value interface{}) interface{} {
+	return valueType(col, value)
+}
+
 func valueType(col *schema.TableColumn, value interface{}) interface{} {
 	switch col.Type {
 	case schema.TYPE_ENUM:
@@ -221,27 +231,27 @@ func valueType(col *schema.TableColumn, value interface{}) interface{} {
 		if err == nil && f != nil {
 			return f
 		}
-		/*
-			case schema.TYPE_DATETIME, schema.TYPE_TIMESTAMP:
-				switch v := value.(type) {
-				case string:
-					vt, err := time.ParseInLocation(mysql.TimeFormat, string(v), time.Local)
-					if err != nil || vt.IsZero() { // failed to parse date or zero date
-						return nil
-					}
-					return vt.Format(time.RFC3339)
-				}
 
-					case schema.TYPE_DATE:
-						switch v := value.(type) {
-						case string:
-							vt, err := time.Parse(mysqlDateFormat, string(v))
-							if err != nil || vt.IsZero() { // failed to parse date or zero date
-								return nil
-							}
-							return vt.Format(mysqlDateFormat)
-						}
-		*/
+	case schema.TYPE_DATETIME, schema.TYPE_TIMESTAMP:
+		switch v := value.(type) {
+		case string:
+			vt, err := time.ParseInLocation(mysql.TimeFormat, string(v), time.Local)
+			if err != nil || vt.IsZero() { // failed to parse date or zero date
+				return nil
+			}
+			return vt.Format(time.RFC3339)
+		}
+
+	case schema.TYPE_DATE:
+		switch v := value.(type) {
+		case string:
+			vt, err := time.Parse(mysqlDateFormat, string(v))
+			if err != nil || vt.IsZero() { // failed to parse date or zero date
+				return nil
+			}
+			return vt.Format(mysqlDateFormat)
+		}
+
 	}
 
 	return value

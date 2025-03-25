@@ -70,6 +70,20 @@ func (d *DmlClickhouse) Delete(tableInfo *mysql.TableInfo, row []interface{}, da
 
 }
 
+func ParseInsertValue(tableInfo *mysql.TableInfo, row []interface{}, addNull bool, dataVersion ...uint64) []interface{} {
+
+	time.Now().UnixMicro()
+	dv := uint64(time.Now().UnixMicro())
+	if len(dataVersion) == 1 {
+		dv = dataVersion[0]
+	}
+	value := make([]interface{}, len(row))
+
+	//value = mysql.DelNilI(value)
+	value = append(value, 0, dv)
+	return value
+
+}
 func onCkInsert(tableInfo *mysql.TableInfo, row []interface{}, addNull bool, isdel int, version uint64) (string, []interface{}) {
 
 	db := tableInfo.Schema

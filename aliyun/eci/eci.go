@@ -107,13 +107,18 @@ func (e *eci) ModifyPod(pod *Pod) {
 	result, err := e.UpdateContainerGroup(p)
 	fmt.Println(result, err)
 }
-func (e *eci) GetPod(name string) *Pod {
+func (e *eci) GetPod(name string, regionId ...string) *Pod {
 
-	result, err := e.DescribeContainerGroups(&client.DescribeContainerGroupsRequest{RegionId: &e.regionId, ContainerGroupName: &name})
+	rid := e.regionId
+	if len(regionId) > 0 {
+		rid = regionId[0]
+	}
+	result, err := e.DescribeContainerGroups(&client.DescribeContainerGroupsRequest{RegionId: &rid, ContainerGroupName: &name})
 	if err != nil {
 		fmt.Println(err)
 		return nil
 	}
+	fmt.Println(result.Body.ContainerGroups)
 
 	if len(result.Body.ContainerGroups) != 1 {
 		return nil
@@ -230,7 +235,12 @@ func (p *Pod) SetPodName(name string) {
 	p.ContainerGroupName = &name
 
 }
-func (e *eci) CreatePod(name, image string) (*string, error) {
+func (e *eci) CreatePod(name, image string, regionId ...string) (*string, error) {
+
+	rid := e.regionId
+	if len(regionId) > 0 {
+		rid = regionId[0]
+	}
 
 	p := &Pod{
 		CreateContainerGroupRequest: &client.CreateContainerGroupRequest{
@@ -238,12 +248,18 @@ func (e *eci) CreatePod(name, image string) (*string, error) {
 			ContainerGroupName: &name,
 		},
 	}
-	container := p.Container[0]
-	container.Name = &name
-	container.Image = &image
+	p.Container = append(p.Container, &client.CreateContainerGroupRequestContainer{
+
+		Name:  &name,
+		Image: &image,
+	})
+	p.RegionId = &rid
 
 	result, err := e.CreateContainerGroup(p.CreateContainerGroupRequest)
-	return result.Body.ContainerGroupId, err
+	if err != nil {
+		return nil, err
+	}
+	return result.Body.ContainerGroupId, nil
 
 }
 

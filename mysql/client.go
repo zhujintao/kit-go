@@ -24,13 +24,13 @@ type Conn struct {
 
 func NewClient(cfg *Config) *Conn {
 	c := new(Conn)
+
 	if cfg.Dialer == nil {
 		dialer := &net.Dialer{}
 		cfg.Dialer = dialer.DialContext
 	}
 	c.cfg = cfg
 	c.ctx, c.cancel = context.WithCancel(context.Background())
-
 	return c
 
 }
@@ -72,6 +72,11 @@ func (c *Conn) UseDB(db string, args ...interface{}) (err error) {
 	c.connLock.Lock()
 	defer c.connLock.Unlock()
 	argF := make([]client.Option, 0)
+	argF = append(argF, func(conn *client.Conn) error {
+		conn.ReadTimeout = c.cfg.ReadTimeout
+		conn.WriteTimeout = c.cfg.WriteTimeout
+		return nil
+	})
 	if c.cfg.TLSConfig != nil {
 		argF = append(argF, func(conn *client.Conn) error {
 			conn.SetTLSConfig(c.cfg.TLSConfig)
@@ -106,6 +111,11 @@ func (c *Conn) Execute(cmd string, args ...interface{}) (rr *mysql.Result, err e
 	c.connLock.Lock()
 	defer c.connLock.Unlock()
 	argF := make([]client.Option, 0)
+	argF = append(argF, func(conn *client.Conn) error {
+		conn.ReadTimeout = c.cfg.ReadTimeout
+		conn.WriteTimeout = c.cfg.WriteTimeout
+		return nil
+	})
 	if c.cfg.TLSConfig != nil {
 		argF = append(argF, func(conn *client.Conn) error {
 			conn.SetTLSConfig(c.cfg.TLSConfig)
@@ -140,6 +150,11 @@ func (c *Conn) ExecuteSelectStreaming(cmd string, perRowCallback func(row []mysq
 	c.connLock.Lock()
 	defer c.connLock.Unlock()
 	argF := make([]client.Option, 0)
+	argF = append(argF, func(conn *client.Conn) error {
+		conn.ReadTimeout = c.cfg.ReadTimeout
+		conn.WriteTimeout = c.cfg.WriteTimeout
+		return nil
+	})
 	if c.cfg.TLSConfig != nil {
 		argF = append(argF, func(conn *client.Conn) error {
 			conn.SetTLSConfig(c.cfg.TLSConfig)

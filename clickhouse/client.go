@@ -15,7 +15,7 @@ type Config struct {
 	Settings clickhouse.Settings
 }
 
-func Newclient(cfg *Config) driver.Conn {
+func NewClient(cfg *Config) driver.Conn {
 
 	c := &clickhouse.Options{}
 	c.Addr = cfg.Addr

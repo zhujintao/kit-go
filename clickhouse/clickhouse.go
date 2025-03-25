@@ -11,10 +11,8 @@ import (
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/format"
-	"github.com/pingcap/tidb/pkg/parser/model"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 	"github.com/pingcap/tidb/pkg/parser/types"
-	_ "github.com/pingcap/tidb/pkg/types/parser_driver"
 )
 
 var mappedTypes map[string]string = map[string]string{
@@ -209,21 +207,21 @@ func getAlterTableSpec(t *table, specs []*ast.AlterTableSpec) error {
 		case ast.AlterTableDropColumn:
 
 			var cols []*ast.ColumnDef
-			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: ast.NewCIStr(spec.OldColumnName.Name.O)}})
 			getColumns(table, cols)
 			t.ddlAction = ast.AlterTableDropColumn
 
 		case ast.AlterTableRenameColumn:
 			var cols []*ast.ColumnDef
 
-			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.OldColumnName.Name.O)}})
-			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: model.NewCIStr(spec.NewColumnName.Name.O)}})
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: ast.NewCIStr(spec.OldColumnName.Name.O)}})
+			cols = append(cols, &ast.ColumnDef{Name: &ast.ColumnName{Name: ast.NewCIStr(spec.NewColumnName.Name.O)}})
 			getColumns(table, cols)
 			t.ddlAction = ast.AlterTableRenameColumn
 
 		case ast.AlterTableDropIndex:
 
-			getColumns(table, []*ast.ColumnDef{{Name: &ast.ColumnName{Name: model.NewCIStr(spec.Name)}}})
+			getColumns(table, []*ast.ColumnDef{{Name: &ast.ColumnName{Name: ast.NewCIStr(spec.Name)}}})
 			t.colpos[spec.Name] = i
 			t.ddlAction = ast.AlterTableDropIndex
 
