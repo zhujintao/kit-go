@@ -7,8 +7,8 @@ import (
 	"github.com/zhujintao/kit-go/mysql"
 )
 
-func FullDataExport(conf *Config, dbs []string, gtidSet GTIDSet, fn func(tableInfo *mysql.TableInfo) func(row []mysql.FieldValue) error) error {
-	cli := mysql.NewClient(&mysql.Config{Addr: conf.Addr, User: conf.User, Password: conf.Password})
+func FullDataExport(container *Container, dbs []string, gtidSet GTIDSet, fn func(tableInfo *mysql.TableInfo) func(row []mysql.FieldValue) error) error {
+	cli := mysql.NewClient(&mysql.Config{Addr: container.Addr, User: container.User, Password: container.Password})
 	cli.Execute("SET @master_heartbeat_period=1")
 	//lock table
 	cli.Execute("FLUSH /*!40101 LOCAL */ TABLES")

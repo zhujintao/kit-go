@@ -3,10 +3,10 @@ module github.com/zhujintao/kit-go/canal
 go 1.24.1
 
 require (
-	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
+	github.com/BurntSushi/toml v1.5.0
 	github.com/go-mysql-org/go-mysql v1.11.0
 	github.com/juju/errors v1.0.0
-	github.com/pingcap/tidb/pkg/parser v0.0.0-20250321020155-34305c636d41
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20250325105645-fb78ab633861
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed
 	github.com/zhujintao/kit-go/mysql v0.0.0-20250301084922-173e8b5c2672

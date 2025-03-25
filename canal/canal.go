@@ -14,40 +14,40 @@ import (
 type Canal = canal.Canal
 type EventHandler = canal.EventHandler
 
-type Config struct {
+type Container struct {
 	Addr     string
 	User     string
 	Password string
 	Handler  EventHandler
-	Prepare  func(gtidSet GTIDSet, conf *Config, dbs []string) error
+	Prepare  func(gtidSet GTIDSet, conf *Container, dbs []string) error
 	Filter   *filterTable
 	WorkDir  string
 	Log      loggers.Advanced
 }
 
-func Run(id string, conf *Config, gtid_executed ...string) error {
+func Run(id string, container Container, gtid_executed ...string) error {
 
 	cfg := canal.NewDefaultConfig()
-	if conf.Handler == nil {
+	if container.Handler == nil {
 		cfg.Logger.Error("Handler is nil")
 		return nil
 	}
-	cfg.Addr = conf.Addr
-	cfg.User = conf.User
-	cfg.Password = conf.Password
+	cfg.Addr = container.Addr
+	cfg.User = container.User
+	cfg.Password = container.Password
 	cfg.Dump.ExecutionPath = ""
 	cfg.ReadTimeout = time.Hour * 24
 	cfg.HeartbeatPeriod = time.Second * 1
 	cfg.MaxReconnectAttempts = 3
 
-	if conf.Log != nil {
-		cfg.Logger = conf.Log
+	if container.Log != nil {
+		cfg.Logger = container.Log
 	}
-	conf.Log = cfg.Logger
+	container.Log = cfg.Logger
 
-	if conf.Filter != nil {
-		cfg.IncludeTableRegex = conf.Filter.include
-		cfg.ExcludeTableRegex = conf.Filter.exclude
+	if container.Filter != nil {
+		cfg.IncludeTableRegex = container.Filter.include
+		cfg.ExcludeTableRegex = container.Filter.exclude
 
 	}
 
@@ -59,7 +59,7 @@ func Run(id string, conf *Config, gtid_executed ...string) error {
 
 	wg := &sync.WaitGroup{}
 
-	h, ok := conf.Handler.(*defaultEventHandler)
+	h, ok := container.Handler.(*defaultEventHandler)
 	if ok {
 		h.setCanal(c)
 		wg.Add(1)
@@ -73,7 +73,7 @@ func Run(id string, conf *Config, gtid_executed ...string) error {
 		h.MasterInfo = &masterInfo{}
 	}
 
-	if err := h.MasterInfo.Init(&conf.WorkDir, id); err != nil {
+	if err := h.MasterInfo.Init(&container.WorkDir, id); err != nil {
 		cfg.Logger.Error("MasterInfo Init ", err)
 		return err
 	}
@@ -89,7 +89,7 @@ func Run(id string, conf *Config, gtid_executed ...string) error {
 		gtidSet, _ = mysql.ParseGTIDSet("mysql", gtid_executed[0])
 	}
 
-	if conf.Prepare != nil {
+	if container.Prepare != nil {
 
 		query := "select table_schema as database_name, table_name from information_schema.tables where table_type != 'view'  order by database_name, table_name"
 		r, err := c.Execute(query)
@@ -102,13 +102,13 @@ func Run(id string, conf *Config, gtid_executed ...string) error {
 			db := string(row[0].AsString())
 			table := string(row[1].AsString())
 			t := db + "." + table
-			if conf.Filter.Match(t) {
+			if container.Filter.Match(t) {
 				dbs = append(dbs, t)
 			}
 
 		}
 
-		err = conf.Prepare(gtidSet, conf, dbs)
+		err = container.Prepare(gtidSet, &container, dbs)
 		if err != nil {
 			cfg.Logger.Error(err)
 			return err
@@ -124,12 +124,12 @@ func Run(id string, conf *Config, gtid_executed ...string) error {
 	utils.SignalNotify().Close(func() {
 		c.Close()
 		err := h.MasterInfo.Close()
-		conf.Log.Infoln("masterinfo save error:", err)
-		conf.Log.Infoln("sig close")
+		container.Log.Infoln("masterinfo save error:", err)
+		container.Log.Infoln("sig close")
 
 	})
 	err = c.StartFromGTID(gtidSet)
 	wg.Wait()
-	conf.Log.Infoln(id, "exit")
+	container.Log.Infoln(id, "exit")
 	return err
 }
