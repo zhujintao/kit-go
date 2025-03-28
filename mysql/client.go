@@ -41,6 +41,16 @@ func NewClientViaSSH(sshAddr, sshUser, sshPassword string, cfg *Config) *Conn {
 		fmt.Println(err)
 		return nil
 	}
+	go func() {
+
+		for range time.Tick(time.Second * 2) {
+			_, _, err := sshcon.SendRequest("hello", true, nil)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+	}()
 	viasshDialer := func(ctx context.Context, network, address string) (net.Conn, error) {
 		return sshcon.Dial(network, address)
 	}
@@ -58,6 +68,9 @@ func (c *Conn) GetTableInfo(db, table string) (*schema.Table, error) {
 }
 
 func (c *Conn) Close() {
+	if c.conn == nil {
+		return
+	}
 	c.conn.Close()
 }
 

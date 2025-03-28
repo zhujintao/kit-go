@@ -15,6 +15,8 @@ type Config struct {
 	Settings clickhouse.Settings
 }
 
+type Batch = driver.Batch
+
 func NewClient(cfg *Config) driver.Conn {
 
 	c := &clickhouse.Options{}

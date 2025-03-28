@@ -9,13 +9,14 @@ import (
 
 	libcolumn "github.com/ClickHouse/clickhouse-go/v2/lib/column"
 	mysqlschema "github.com/go-mysql-org/go-mysql/schema"
+	"github.com/shopspring/decimal"
 	"github.com/zhujintao/kit-go/mysql"
 )
 
-func ScanIRowFromMysql(columns []mysql.TableColumn, fields []string, row []any, dest []any, fixValue func(col mysqlschema.TableColumn, v *any)) error {
+func ScanIRowFromMysql(columns []mysql.TableColumn, row []any, dest []any, fields []string, fixValue func(col mysql.TableColumn, v *any)) error {
 	for idx, col := range columns {
 
-		if !slices.Contains(fields, col.Name) {
+		if fields != nil && !slices.Contains(fields, col.Name) {
 			continue
 		}
 
@@ -31,6 +32,20 @@ func ScanIRowFromMysql(columns []mysql.TableColumn, fields []string, row []any, 
 			if v, ok := value.([]byte); ok {
 				value = string(v)
 			}
+		}
+
+		if col.Type == mysqlschema.TYPE_DECIMAL {
+			var ok bool
+			var v string
+			if v, ok = value.(string); !ok {
+				return fmt.Errorf("%s ,%v", col.Name, v)
+			}
+			d, err := decimal.NewFromString(v)
+			if err != nil {
+				return err
+			}
+			value = d
+
 		}
 
 		if fixValue != nil {
@@ -57,10 +72,10 @@ func ScanIRowFromMysql(columns []mysql.TableColumn, fields []string, row []any, 
 
 	return nil
 }
-func ScanRowFromMysql(columns []mysql.TableColumn, fields []string, row []mysql.FieldValue, dest []any, fixValue func(col mysqlschema.TableColumn, v *any)) error {
+func ScanRowFromMysql(columns []mysqlschema.TableColumn, row []mysql.FieldValue, dest []any, fields []string, fixValue func(col mysqlschema.TableColumn, v *any)) error {
 	for idx, col := range columns {
 
-		if !slices.Contains(fields, col.Name) {
+		if fields != nil && !slices.Contains(fields, col.Name) {
 			continue
 		}
 
@@ -76,6 +91,15 @@ func ScanRowFromMysql(columns []mysql.TableColumn, fields []string, row []mysql.
 			if v, ok := value.([]byte); ok {
 				value = string(v)
 			}
+		}
+
+		if col.Type == mysqlschema.TYPE_DECIMAL {
+			d, err := decimal.NewFromString(string(value.([]uint8)))
+			if err != nil {
+				return err
+			}
+			value = d
+
 		}
 
 		if fixValue != nil {
@@ -141,17 +165,4 @@ func parseType(mysql_type int, mysql_rawtype string, fieldName string, nullable 
 
 	return field.Column(fieldName, time.Local)
 
-}
-
-var ckypemps map[int]string = map[int]string{
-	mysqlschema.TYPE_NUMBER:    "Int32",
-	mysqlschema.TYPE_FLOAT:     "Float64",
-	mysqlschema.TYPE_BINARY:    "FixedString",
-	mysqlschema.TYPE_DATETIME:  "DateTime",
-	mysqlschema.TYPE_TIMESTAMP: "DateTime",
-	mysqlschema.TYPE_DATE:      "Date",
-	mysqlschema.TYPE_STRING:    "String",
-	mysqlschema.TYPE_ENUM:      "Enum8",
-	mysqlschema.TYPE_DECIMAL:   "Decimal(",
-	mysqlschema.TYPE_JSON:      "JSON",
 }

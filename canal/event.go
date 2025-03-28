@@ -16,7 +16,8 @@ type Position = mysql.Position
 type GTIDSet = mysql.GTIDSet
 type RowsEvent = canal.RowsEvent
 
-func DefaultEvent() *defaultEventHandler {
+// set event logic
+func DefaultHandler() *defaultEventHandler {
 	return &defaultEventHandler{ch: make(chan any, 4096)}
 }
 
@@ -71,6 +72,7 @@ func (h *defaultEventHandler) work(wd *sync.WaitGroup, log loggers.Advanced, int
 				h.canal.Close()
 
 			}
+
 		}
 
 	}
