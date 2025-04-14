@@ -42,7 +42,6 @@ func NewClientViaSSH(sshAddr, sshUser, sshPassword string, cfg *Config) *Conn {
 		return nil
 	}
 	go func() {
-
 		for range time.Tick(time.Second * 2) {
 			_, _, err := sshcon.SendRequest("hello", true, nil)
 			if err != nil {

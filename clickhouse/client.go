@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -51,13 +52,24 @@ func NewClientViaSSH(sshAddr, sshUser, sshPassword string, cfg *Config) driver.C
 		return nil
 	}
 
-	cfg.Options.DialContext = func(ctx context.Context, addr string) (net.Conn, error) {
-		return sshcon.Dial("tcp", addr)
+	go func() {
+
+		for range time.Tick(time.Second * 2) {
+			_, _, err := sshcon.SendRequest("hello", true, nil)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+	}()
+
+	c := &Options{}
+	if cfg.Options == nil {
+		c.DialContext = func(ctx context.Context, addr string) (net.Conn, error) {
+			return sshcon.Dial("tcp", addr)
+		}
 	}
 
-	c := &Options{
-		DialContext: cfg.Options.DialContext,
-	}
 	c.Addr = cfg.Addr
 	c.Auth.Username = cfg.User
 	c.Auth.Password = cfg.Password
