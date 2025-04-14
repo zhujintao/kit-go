@@ -7,6 +7,8 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
+type Conn = driver.Conn
+
 type Config struct {
 	Addr     []string
 	User     string
