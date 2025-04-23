@@ -265,17 +265,31 @@ func ErrorCode(errMsg string) (code int) {
 }
 
 func ParseConfDSN(cfg *Config, dsn string) error {
+
+	c, err := ParseDsn(dsn)
+	if err != nil {
+		return err
+	}
+
+	cfg.Addr = c.Addr
+	cfg.User = c.User
+	cfg.Password = c.Password
+
+	return nil
+}
+
+func ParseDsn(dsn string) (*struct{ Addr, User, Password string }, error) {
+
 	pos := strings.LastIndex(dsn, "@")
 	if pos == -1 {
-		return fmt.Errorf("dsn format error: user:password@ip:port")
+		return nil, fmt.Errorf("dsn format error: user:password@ip:port")
 	}
 	account := dsn[:pos]
 	address := dsn[pos+1:]
 	pos = strings.Index(account, ":")
 	user := account[:pos]
 	password := account[pos+1:]
-	cfg.Addr = address
-	cfg.User = user
-	cfg.Password = password
-	return nil
+
+	return &struct{ Addr, User, Password string }{address, user, password}, nil
+
 }

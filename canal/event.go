@@ -1,13 +1,13 @@
 package canal
 
 import (
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/canal"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
-	"github.com/siddontang/go-log/loggers"
 )
 
 type EventHeader = replication.EventHeader
@@ -34,10 +34,10 @@ type defaultEventHandler struct {
 	ch          chan any
 	*canal.DummyEventHandler
 	MasterInfo MasterInfoInterface
-	log        loggers.Advanced
+	log        *slog.Logger
 }
 
-func (h *defaultEventHandler) work(wd *sync.WaitGroup, log loggers.Advanced, interval int) {
+func (h *defaultEventHandler) work(wd *sync.WaitGroup, log *slog.Logger, interval int) {
 	h.log = log
 	ticker := time.NewTicker(time.Duration(interval) * time.Millisecond)
 	defer ticker.Stop()
@@ -68,7 +68,7 @@ func (h *defaultEventHandler) work(wd *sync.WaitGroup, log loggers.Advanced, int
 		if write {
 			err := h.MasterInfo.Save(gtidSet)
 			if err != nil {
-				h.log.Errorln("work MasterInfo.save", err)
+				h.log.Error("work MasterInfo.save", err)
 				h.canal.Close()
 
 			}

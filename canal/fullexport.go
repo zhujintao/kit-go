@@ -62,7 +62,7 @@ func FullDataExport(c *Container, tables []string, gtidSet GTIDSet, fn func(tabl
 		}, nil)
 
 		if err != nil {
-			c.log.Errorln("FullDataExport", table, err)
+			c.log.Error("FullDataExport", table, err)
 			return err
 		}
 

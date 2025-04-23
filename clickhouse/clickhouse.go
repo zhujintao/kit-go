@@ -72,9 +72,11 @@ type table struct {
 
 func InErrCode(err error, code ...int32) bool {
 
-	errCoe := err.(*clickhouse.Exception).Code
-
-	return slices.Contains(code, errCoe)
+	errCode, ok := err.(*clickhouse.Exception)
+	if !ok {
+		return false
+	}
+	return slices.Contains(code, errCode.Code)
 
 }
 

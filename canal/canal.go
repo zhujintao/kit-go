@@ -3,6 +3,7 @@ package canal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/canal"
 	"github.com/go-mysql-org/go-mysql/client"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/zhujintao/kit-go/log"
 	"github.com/zhujintao/kit-go/utils"
 	"golang.org/x/crypto/ssh"
 )
@@ -34,7 +36,7 @@ type Container struct {
 	Prepare    Prepare
 	Filter     *filterTable
 	WorkDir    string
-	log        *logger
+	log        *slog.Logger
 	TableCehck tableCheck
 	ViaSsh     *viaSSh
 }
@@ -44,10 +46,11 @@ func ViaSsh(addr, user, password string) *viaSSh {
 }
 
 func Run(id string, container Container, gtid_executed ...string) error {
-	container.log = newlogger(fmt.Sprintf("%s=%v\t", "id", id))
+	container.log = slog.New(log.SlogDefaultWithId(id))
+
 	cfg := canal.NewDefaultConfig()
 	if container.Handler == nil {
-		cfg.Logger.Infoln("Handler not nil, exit")
+		cfg.Logger.Info("Handler not nil, exit")
 		return nil
 	}
 	cfg.Addr = container.Addr
@@ -75,7 +78,7 @@ func Run(id string, container Container, gtid_executed ...string) error {
 			for range time.Tick(cfg.HeartbeatPeriod) {
 				_, _, err := sconn.SendRequest("hello", true, nil)
 				if err != nil {
-					container.log.Error(err)
+					container.log.Error(err.Error())
 					return
 				}
 			}
@@ -95,7 +98,7 @@ func Run(id string, container Container, gtid_executed ...string) error {
 
 	c, err := canal.NewCanal(cfg)
 	if err != nil {
-		cfg.Logger.Error(err)
+		container.log.Error(err.Error())
 		return err
 	}
 
@@ -122,7 +125,7 @@ func Run(id string, container Container, gtid_executed ...string) error {
 
 	g, err := h.MasterInfo.Load()
 	if err != nil {
-		cfg.Logger.Error(err)
+		container.log.Error(err.Error())
 		return err
 	}
 	gtidSet, _ = mysql.ParseGTIDSet("mysql", g)
@@ -153,7 +156,7 @@ func Run(id string, container Container, gtid_executed ...string) error {
 
 		err = container.Prepare(gtidSet, &container, dbs)
 		if err != nil {
-			container.log.Error(err)
+			container.log.Error(err.Error())
 			return err
 		}
 
@@ -167,12 +170,12 @@ func Run(id string, container Container, gtid_executed ...string) error {
 	utils.SignalNotify().Close(func() {
 		c.Close()
 		err := h.MasterInfo.Close()
-		container.log.Infoln("masterinfo save error:", err)
-		container.log.Infoln("sig close")
+		container.log.Info("masterinfo save error:", err)
+		container.log.Info("sig close")
 
 	})
 	err = c.StartFromGTID(gtidSet)
 	wg.Wait()
-	container.log.Infoln(id, "exit")
+	container.log.Info(id, "exit")
 	return err
 }

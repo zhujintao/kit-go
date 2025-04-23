@@ -5,7 +5,7 @@ go 1.23.3
 toolchain go1.24.1
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.33.1
+	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
 	github.com/go-mysql-org/go-mysql v1.11.0
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20250318023652-80d6b5683c5c
 	github.com/zhujintao/kit-go/mysql v0.0.0-20250325111122-af48f9680cb9
