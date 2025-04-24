@@ -1,6 +1,6 @@
 module github.com/zhujintao/kit-go/canal
 
-go 1.24.1
+go 1.24.2
 
 require (
 	github.com/BurntSushi/toml v1.5.0
@@ -9,8 +9,9 @@ require (
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20250325105645-fb78ab633861
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed
+	github.com/zhujintao/kit-go/log v0.0.0-20250423065603-65cda42ce36a
 	github.com/zhujintao/kit-go/mysql v0.0.0-20250301084922-173e8b5c2672
-	github.com/zhujintao/kit-go/utils v0.0.0-20250301084922-173e8b5c2672
+	github.com/zhujintao/kit-go/utils v0.0.0-20250414091825-969f7b32093a
 	golang.org/x/crypto v0.36.0
 	golang.org/x/sync v0.12.0
 	tailscale.com v1.80.3

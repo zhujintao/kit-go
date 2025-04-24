@@ -56,12 +56,14 @@ github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81P
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/zhujintao/kit-go/log v0.0.0-20250423065603-65cda42ce36a h1:G42C0FFXcbKf3lYGz0Qhi0UL4UGvDiKxKfU18DqJ5Pg=
+github.com/zhujintao/kit-go/log v0.0.0-20250423065603-65cda42ce36a/go.mod h1:ENTwtjUB83bpJdm2Huz7WB5IC6WEikHLInW3GNRaOAs=
 github.com/zhujintao/kit-go/mysql v0.0.0-20250301084922-173e8b5c2672 h1:A+J7Ghvl1WHKV8eaLocg9FxwyJKT4GQWJZiMhpQIcMQ=
 github.com/zhujintao/kit-go/mysql v0.0.0-20250301084922-173e8b5c2672/go.mod h1:8BqRmDZJP16JYFOQeJV+jOC88MkO1T/J3I93s2sAVig=
 github.com/zhujintao/kit-go/ssh v0.0.0-20250301084922-173e8b5c2672 h1:0avguwaoTSI2uO1qpT2wt9BjIaP0DgBdS7XtQyC72hI=
 github.com/zhujintao/kit-go/ssh v0.0.0-20250301084922-173e8b5c2672/go.mod h1:oyBIVJhUINQ/BocN6+HOVR7u7cL7mxUrqkIakMzN99Y=
-github.com/zhujintao/kit-go/utils v0.0.0-20250301084922-173e8b5c2672 h1:94XkD0oT/lhs8636CgIcHgJ8xqlcr9xPeJ29JAG+PF8=
-github.com/zhujintao/kit-go/utils v0.0.0-20250301084922-173e8b5c2672/go.mod h1:rDnyp0zaAs6cj5d/jyJbgnRVMLnxw328R+8vw2OqCUc=
+github.com/zhujintao/kit-go/utils v0.0.0-20250414091825-969f7b32093a h1:L8vFHqGkrN7k4oNSf4BgkO/9gJn5FHJTvQjwKolhafw=
+github.com/zhujintao/kit-go/utils v0.0.0-20250414091825-969f7b32093a/go.mod h1:rDnyp0zaAs6cj5d/jyJbgnRVMLnxw328R+8vw2OqCUc=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
