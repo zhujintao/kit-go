@@ -3,6 +3,7 @@ package yq
 import (
 	"bytes"
 	"io"
+	"strings"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"gopkg.in/op/go-logging.v1"
@@ -47,6 +48,6 @@ func PickXml(text string, xmlPath string) string {
 		return ""
 	}
 
-	return toyaml.String()
+	return strings.TrimSuffix(toyaml.String(), "\n")
 
 }
