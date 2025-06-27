@@ -26,7 +26,7 @@ type Batch = driver.Batch
 
 func NewClient(cfg *Config) driver.Conn {
 
-	c := &clickhouse.Options{}
+	c := cfg.Options
 	c.Addr = cfg.Addr
 	c.Auth.Username = cfg.User
 	c.Auth.Password = cfg.Password
@@ -63,8 +63,8 @@ func NewClientViaSSH(sshAddr, sshUser, sshPassword string, cfg *Config) driver.C
 		}
 	}()
 
-	c := &Options{}
-	if cfg.Options == nil {
+	c := cfg.Options
+	if c.DialContext == nil {
 		c.DialContext = func(ctx context.Context, addr string) (net.Conn, error) {
 			return sshcon.Dial("tcp", addr)
 		}

@@ -72,6 +72,9 @@ func (c *Conn) Close() {
 	}
 	c.conn.Close()
 }
+func (c *Conn) GetConfig() *Config {
+	return c.cfg
+}
 
 func (c *Conn) connect(options ...client.Option) (*client.Conn, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, time.Second*10)
