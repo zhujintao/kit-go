@@ -36,7 +36,8 @@ func AddMetric(name, unit string, help ...string) *metric {
 	if len(help) == 1 {
 		_help = help[0]
 	}
-	return &metric{name: name, unit: unit, help: _help, labels: []prompb.Label{{Name: "__name__", Value: name}}}
+	fullName := name + "_" + unit
+	return &metric{name: fullName, unit: unit, help: _help, labels: []prompb.Label{{Name: "__name__", Value: fullName}}}
 
 }
 func (m *metric) AddLabel(labelName, labelValue string) *metric {
