@@ -1,7 +1,6 @@
 package promwrite
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"time"
@@ -57,7 +56,7 @@ func (l *label) Label(k, v string) *label {
 	if !slices.Contains(l.m.labelValue, v) {
 
 		l.m.labelValue = append(l.m.labelValue, v)
-		fmt.Println(l.m.labelValue, len(l.m.labelValue))
+
 		l.m.labels[k] = len(l.m.labelValue) - 1
 
 	}
