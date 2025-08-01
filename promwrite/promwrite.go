@@ -1,103 +1,102 @@
 package promwrite
 
 import (
+	"slices"
 	"sort"
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/prometheus/prometheus/prompb"
+	writev2 "github.com/prometheus/prometheus/prompb/io/prometheus/write/v2"
+	"github.com/prometheus/prometheus/storage/remote"
 	"resty.dev/v3"
 )
 
-type WriteRequest = prompb.WriteRequest
+type WriteRequest = writev2.Request
 type HttpRequest = resty.Request
 
 type metric struct {
-	name   string
-	unit   string
-	help   string
-	mtype  prompb.MetricMetadata_MetricType
-	labels []prompb.Label
-	values []prompb.Sample
+	labelName  []string
+	labelValue []string
+	labels     map[string]int
+	timeSeries []writev2.TimeSeries
 }
 
-type byLabelName []prompb.Label
-
-func (a byLabelName) Len() int           { return len(a) }
-func (a byLabelName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-func (a byLabelName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-func (m *metric) sort() {
-	sort.Stable(byLabelName(m.labels))
-}
-
-func AddMetric(name, unit string, help ...string) *metric {
-	_help := ""
-	if len(help) == 1 {
-		_help = help[0]
-	}
-	fullName := name
-	if unit != "" {
-		fullName = name + "_" + unit
-	}
-
-	return &metric{name: fullName, unit: unit, help: _help, labels: []prompb.Label{{Name: "__name__", Value: fullName}}}
-
-}
-func (m *metric) AddLabel(labelName, labelValue string) *metric {
-	m.labels = append(m.labels, prompb.Label{Name: labelName, Value: labelValue})
-	return m
-}
-
-func (m *metric) SetGauge(value float64, ts ...int64) *metric {
-	now := time.Now().UnixMilli()
-	if len(ts) != 1 {
-		now = time.Now().UnixMilli()
-	}
-	m.mtype = prompb.MetricMetadata_GAUGE
-	m.values = append(m.values, prompb.Sample{Value: value, Timestamp: now})
-	return m
-}
-
-func (m *metric) ApplyWriteRequest(w *WriteRequest) {
-
-	if m.values == nil {
-		panic("value not set")
-	}
-	m.sort()
-	w.Timeseries = append(w.Timeseries, prompb.TimeSeries{Labels: m.labels, Samples: m.values})
-
-	w.Metadata = append(w.Metadata, prompb.MetricMetadata{Type: m.mtype, MetricFamilyName: m.name, Unit: m.unit, Help: m.help})
-
-}
-
-type promWrite struct {
-	WriteRequest *WriteRequest
-	cli          *resty.Client
-}
-
-func New() *promWrite {
-	return &promWrite{WriteRequest: &prompb.WriteRequest{}, cli: resty.New()}
-}
-func (w *promWrite) AddMetric(name, unit string, help ...string) *metric {
-
-	return AddMetric(name, unit, help...)
-
-}
+var cli *resty.Client = resty.New()
 
 // use resty Post() write remote
-func (w promWrite) Send() *HttpRequest {
+func (m *metric) Send() *HttpRequest {
+	symbols := append(m.labelName, m.labelValue...)
+	w := WriteRequest{}
+	w.Symbols = append(w.Symbols, symbols...)
 
-	data, err := w.WriteRequest.Marshal()
-	if err != nil {
-		panic(err)
+	w.Timeseries = append(w.Timeseries, m.timeSeries...)
+
+	data, _ := w.Marshal()
+	return cli.R().
+		//SetBasicAuth("xxx", "xxx").
+		SetBody(snappy.Encode(nil, data)).
+		SetHeader("Content-Type", "application/x-protobuf;proto=io.prometheus.write.v2.Request").
+		SetHeader("Content-Encoding", "snappy").
+		SetHeader(remote.RemoteWriteVersionHeader, remote.RemoteWriteVersion20HeaderValue).
+		SetHeader("User-Agent", "promremote-go/1.0.0")
+}
+
+type label struct {
+	m   *metric
+	ref []uint32
+}
+
+func (l *label) Label(k, v string) *label {
+
+	if !slices.Contains(l.m.labelName, k) {
+		l.m.labelName = append(l.m.labelName, k)
 	}
 
-	return w.cli.R().
-		SetBody(snappy.Encode(nil, data)).
-		SetHeader("Content-Type", "application/x-protobuf").
-		SetHeader("Content-Encoding", "snappy").
-		SetHeader("X-Prometheus-Remote-Write-Version", "0.1.0").
-		SetHeader("User-Agent", "promremote-go/1.0.0")
+	if !slices.Contains(l.m.labelValue, v) {
 
+		l.m.labelValue = append(l.m.labelValue, v)
+
+		l.m.labels[k] = len(l.m.labelValue) - 1
+	}
+
+	return l
+}
+
+func (l *label) SetValue(value float64) {
+	sort.Strings(l.m.labelName)
+
+	for kref, s := range l.m.labelName {
+		if kref == 0 {
+			continue
+		}
+
+		vref := l.m.labels[s] + len(l.m.labelName)
+		l.ref = append(l.ref, uint32(kref), uint32(vref))
+
+	}
+
+	ts := writev2.TimeSeries{LabelsRefs: l.ref}
+	ts.Samples = append(ts.Samples, writev2.Sample{Value: value, Timestamp: time.Now().UnixMilli()})
+	l.m.timeSeries = append(l.m.timeSeries, ts)
+
+	l.ref = l.ref[:0]
+
+}
+
+func (m *metric) Name(name, unit string) *label {
+
+	fullName := name + "_" + unit
+	if !slices.Contains(m.labelValue, fullName) {
+		m.labelValue = append(m.labelValue, fullName)
+
+	}
+
+	return &label{
+		m: m,
+	}
+}
+
+// Remote Write 2.0
+func NewMetric() *metric {
+	return &metric{labelName: []string{"", "__name__"}, labels: map[string]int{"__name__": 0}}
 }
