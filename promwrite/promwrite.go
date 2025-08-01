@@ -1,6 +1,7 @@
 package promwrite
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"time"
@@ -56,8 +57,9 @@ func (l *label) Label(k, v string) *label {
 	if !slices.Contains(l.m.labelValue, v) {
 
 		l.m.labelValue = append(l.m.labelValue, v)
-
+		fmt.Println(l.m.labelValue, len(l.m.labelValue))
 		l.m.labels[k] = len(l.m.labelValue) - 1
+
 	}
 
 	return l
@@ -84,7 +86,7 @@ func (l *label) SetValue(value float64, ts ...int64) {
 	timeSeries.Samples = append(timeSeries.Samples, writev2.Sample{Value: value, Timestamp: _ts})
 	l.m.timeSeries = append(l.m.timeSeries, timeSeries)
 
-	l.ref = l.ref[:0]
+	l.ref = nil
 
 }
 
