@@ -91,9 +91,13 @@ func (l *label) SetValue(value float64, ts ...int64) {
 
 func (m *metric) Name(name, unit string) *label {
 
-	fullName := name + "_" + unit
-	if !slices.Contains(m.labelValue, fullName) {
-		m.labelValue = append(m.labelValue, fullName)
+	_name := name
+	if unit != "" {
+		_name = name + "_" + unit
+	}
+
+	if !slices.Contains(m.labelValue, _name) {
+		m.labelValue = append(m.labelValue, _name)
 
 	}
 
