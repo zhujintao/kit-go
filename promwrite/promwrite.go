@@ -1,6 +1,7 @@
 package promwrite
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"time"
@@ -23,14 +24,14 @@ type metric struct {
 
 var cli *resty.Client = resty.New()
 
-// use resty Post() write remote
+// use resty Post() write remote /api/v1/write
 func (m *metric) Send() *HttpRequest {
 	symbols := append(m.labelName, m.labelValue...)
 	w := WriteRequest{}
 	w.Symbols = append(w.Symbols, symbols...)
 
 	w.Timeseries = append(w.Timeseries, m.timeSeries...)
-
+	fmt.Println(w)
 	data, _ := w.Marshal()
 	return cli.R().
 		//SetBasicAuth("xxx", "xxx").
@@ -38,7 +39,8 @@ func (m *metric) Send() *HttpRequest {
 		SetHeader("Content-Type", "application/x-protobuf;proto=io.prometheus.write.v2.Request").
 		SetHeader("Content-Encoding", "snappy").
 		SetHeader(remote.RemoteWriteVersionHeader, remote.RemoteWriteVersion20HeaderValue).
-		SetHeader("User-Agent", "promremote-go/1.0.0")
+		SetHeader("User-Agent", "promwrite/0.0.0")
+
 }
 
 type label struct {
@@ -62,7 +64,7 @@ func (l *label) Label(k, v string) *label {
 	return l
 }
 
-func (l *label) SetValue(value float64) {
+func (l *label) SetValue(value float64, ts ...int64) {
 	sort.Strings(l.m.labelName)
 
 	for kref, s := range l.m.labelName {
@@ -74,10 +76,14 @@ func (l *label) SetValue(value float64) {
 		l.ref = append(l.ref, uint32(kref), uint32(vref))
 
 	}
+	_ts := time.Now().UnixMilli()
+	if len(ts) == 1 {
+		_ts = ts[0]
+	}
 
-	ts := writev2.TimeSeries{LabelsRefs: l.ref}
-	ts.Samples = append(ts.Samples, writev2.Sample{Value: value, Timestamp: time.Now().UnixMilli()})
-	l.m.timeSeries = append(l.m.timeSeries, ts)
+	timeSeries := writev2.TimeSeries{LabelsRefs: l.ref}
+	timeSeries.Samples = append(timeSeries.Samples, writev2.Sample{Value: value, Timestamp: _ts})
+	l.m.timeSeries = append(l.m.timeSeries, timeSeries)
 
 	l.ref = l.ref[:0]
 
