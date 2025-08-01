@@ -1,7 +1,6 @@
 package promwrite
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"time"
@@ -31,7 +30,7 @@ func (m *metric) Send() *HttpRequest {
 	w.Symbols = append(w.Symbols, symbols...)
 
 	w.Timeseries = append(w.Timeseries, m.timeSeries...)
-	fmt.Println(w)
+
 	data, _ := w.Marshal()
 	return cli.R().
 		//SetBasicAuth("xxx", "xxx").
