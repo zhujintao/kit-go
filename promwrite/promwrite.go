@@ -21,7 +21,7 @@ type metric struct {
 	timeSeries []writev2.TimeSeries
 }
 
-var cli *resty.Client = resty.New()
+var cli *resty.Client = resty.New().SetDisableWarn(true)
 
 // use resty Post() write remote /api/v1/write
 func (m *metric) Send() *HttpRequest {
