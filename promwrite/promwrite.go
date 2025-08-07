@@ -30,7 +30,7 @@ type label struct {
 
 func NewMetric(url string, auth ...string) *metric {
 
-	cli := resty.New()
+	cli := resty.New().SetDisableWarn(true)
 	if len(auth) == 2 {
 		cli.SetBasicAuth(auth[0], auth[1])
 	}
@@ -78,13 +78,13 @@ func (l *label) Send() error {
 		Samples:    l.samples,
 		Metadata:   writev2.Metadata{HelpRef: help, UnitRef: uint},
 	}}
-	fmt.Println(w)
+
 	data, err := w.Marshal()
 
 	l.s.Reset()
 	l.lables.Reset()
 
-	l.samples = nil
+	l.samples = l.samples[:0]
 
 	resutl, err := l.m.cli.SetBody(snappy.Encode(nil, data)).Post(l.m.cli.URL)
 	if err != nil {
