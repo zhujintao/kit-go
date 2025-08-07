@@ -67,24 +67,25 @@ func (l *label) Send() error {
 
 	l.lables.Add("__name__", l.name)
 	l.lables.Sort()
-
+	ref := l.s.SymbolizeLabels(l.lables.Labels(), nil)
 	uint := l.s.Symbolize(l.uint)
 	help := l.s.Symbolize(l.help)
 
 	w := &WriteRequest{}
 	w.Symbols = l.s.Symbols()
 	w.Timeseries = []writev2.TimeSeries{{
-		LabelsRefs: l.s.SymbolizeLabels(l.lables.Labels(), nil),
+		LabelsRefs: ref,
 		Samples:    l.samples,
 		Metadata:   writev2.Metadata{HelpRef: help, UnitRef: uint},
 	}}
+	fmt.Println(w)
+	data, err := w.Marshal()
 
-	data, _ := w.Marshal()
 	l.s.Reset()
 	l.lables.Reset()
-	fmt.Println(l.samples, len(l.samples))
-	l.samples = l.samples[:0]
-	fmt.Println(l.samples, len(l.samples))
+
+	l.samples = nil
+
 	resutl, err := l.m.cli.SetBody(snappy.Encode(nil, data)).Post(l.m.cli.URL)
 	if err != nil {
 		return err
