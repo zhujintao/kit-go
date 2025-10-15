@@ -28,6 +28,7 @@ type label struct {
 	samples []writev2.Sample
 }
 
+// v1 /api/v1/write
 func NewMetric(url string, auth ...string) *metric {
 
 	cli := resty.New().SetDisableWarn(true)
@@ -39,7 +40,7 @@ func NewMetric(url string, auth ...string) *metric {
 		SetHeader("Content-Type", "application/x-protobuf;proto=io.prometheus.write.v2.Request").
 		SetHeader("Content-Encoding", "snappy").
 		SetHeader(remote.RemoteWriteVersionHeader, remote.RemoteWriteVersion20HeaderValue).
-		SetHeader("User-Agent", "promwrite/0.0.0").
+		SetHeader("User-Agent", "promwrite/0.0.1").
 		SetURL(url)
 
 	return &metric{cli: s}
@@ -80,7 +81,10 @@ func (l *label) Send() error {
 	}}
 
 	data, err := w.Marshal()
-
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 	l.s.Reset()
 	l.lables.Reset()
 
@@ -88,10 +92,11 @@ func (l *label) Send() error {
 
 	resutl, err := l.m.cli.SetBody(snappy.Encode(nil, data)).Post(l.m.cli.URL)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	if resutl.StatusCode() != 204 {
-		fmt.Println(resutl.String())
+		fmt.Println(resutl.Status(), resutl.String())
 		return errors.New(resutl.String())
 
 	}
