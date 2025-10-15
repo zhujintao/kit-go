@@ -5,6 +5,23 @@ import (
 	"strings"
 )
 
+// desc	  stat		lanips		time log   priority wan      thd_type  ?  l7proto         portocol																	  no_ch
+// [zjt-wx 1     192.168.10.249  OFF   0     60000    3        0           00000000       0>119.147.6.237,121.14.23.85,183.2.143.222,119.147.6.203>>api.weixin.qq.com>0 1]
+type SNat struct {
+	Description  string `weyos:"name"`
+	Status       string `weyos:"enabled"`
+	Priority     string `weyos:"priority"`
+	WanInterface string `weyos:"wan"`
+	Protocol     string `weyos:"proto"`
+	LanIps       string `weyos:"lanip_range"`
+	Schedule     string `weyos:"time_range"`
+	Failover     string `weyos:"no_change"`
+	Logging      string `weyos:"log_enabled"`
+	L7Protocol   string `weyos:"l7proto"`
+	Thdtype      string `weyos:"thd_type"`
+	Opt          string `weyos:"opt"`
+}
+
 type DNat struct {
 	Status       string `weyos:"enabled"`
 	Description  string `weyos:"name"`
@@ -18,6 +35,10 @@ type DNat struct {
 
 func UnmarshalDNAT(s string, v any) {
 	unmarshal(s, v, unmkDnat)
+}
+
+func UnmarshalSNAT(s string, v any) {
+	unmarshal(s, v, unmkSnat)
 }
 
 func MarshalDNAT(v any) string {
@@ -105,6 +126,61 @@ func unmarshal(s string, v any, f func(s string, numField int, t reflect.Type, v
 	f(s, t.NumField(), t, value, nil)
 }
 
+func unmkSnat(s string, numField int, t reflect.Type, v reflect.Value, value *reflect.Value) {
+
+	for _, record := range strings.Split(s, "<") {
+		if len(record) == 0 {
+			continue
+		}
+
+		field := strings.Split(record, "|")
+
+		if len(field) != 12 {
+			continue
+		}
+
+		for i := range numField {
+			f := v.Field(i)
+			tag := t.Field(i).Tag.Get("weyos")
+			if tag == "" || tag == "-" {
+				continue
+			}
+
+			switch tag {
+			case "name":
+				f.SetString(field[0])
+			case "enabled":
+				f.SetString(field[1])
+			case "lanip_range":
+				f.SetString(field[2])
+			case "time_range":
+				f.SetString(field[3])
+			case "log_enabled":
+				f.SetString(field[4])
+			case "priority":
+				f.SetString(field[5])
+			case "wan":
+				f.SetString(field[6])
+			case "thd_type":
+				f.SetString(field[7])
+			case "opt":
+				f.SetString(field[8])
+			case "l7proto":
+				f.SetString(field[9])
+			case "proto":
+				f.SetString(field[10])
+			case "no_change":
+				f.SetString(field[11])
+			}
+		}
+		if value != nil {
+			value.Set(reflect.Append(*value, v))
+		}
+
+	}
+
+}
+
 func unmkDnat(s string, numField int, t reflect.Type, v reflect.Value, value *reflect.Value) {
 
 	for _, record := range strings.Split(s, ">") {
@@ -120,6 +196,7 @@ func unmkDnat(s string, numField int, t reflect.Type, v reflect.Value, value *re
 			if tag == "" || tag == "-" {
 				continue
 			}
+
 			switch tag {
 
 			case "enabled":
@@ -140,6 +217,7 @@ func unmkDnat(s string, numField int, t reflect.Type, v reflect.Value, value *re
 				f.SetString(field[7])
 			}
 		}
+
 		if value != nil {
 			value.Set(reflect.Append(*value, v))
 		}
