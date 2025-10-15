@@ -16,11 +16,11 @@ type Dnat struct {
 	WanInterface string `weyos:"wan"`
 }
 
-func UnmarshalDnat(s string, v any) {
+func UnmarshalDNAT(s string, v any) {
 	unmarshal(s, v, ttDnat)
 }
 
-func Marshal(v any) string {
+func MarshalDNAT(v any) string {
 	return marshal(v, mkDnat)
 }
 
