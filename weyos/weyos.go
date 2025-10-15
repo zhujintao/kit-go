@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type Dnat struct {
+type DNat struct {
 	Status       string `weyos:"enabled"`
 	Description  string `weyos:"name"`
 	Protocol     string `weyos:"proto"`
@@ -17,7 +17,7 @@ type Dnat struct {
 }
 
 func UnmarshalDNAT(s string, v any) {
-	unmarshal(s, v, ttDnat)
+	unmarshal(s, v, unmkDnat)
 }
 
 func MarshalDNAT(v any) string {
@@ -105,7 +105,7 @@ func unmarshal(s string, v any, f func(s string, numField int, t reflect.Type, v
 	f(s, t.NumField(), t, value, nil)
 }
 
-func ttDnat(s string, numField int, t reflect.Type, v reflect.Value, value *reflect.Value) {
+func unmkDnat(s string, numField int, t reflect.Type, v reflect.Value, value *reflect.Value) {
 
 	for _, record := range strings.Split(s, ">") {
 
