@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-// desc	  stat		lanips		time log   priority wan      thd_type  ?  l7proto         portocol																	  no_ch
-// [zjt-wx 1     192.168.10.249  OFF   0     60000    3        0           00000000       0>119.147.6.237,121.14.23.85,183.2.143.222,119.147.6.203>>api.weixin.qq.com>0 1]
 type SNat struct {
 	Description  string `weyos:"name"`
 	Status       string `weyos:"enabled"`
