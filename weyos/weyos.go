@@ -22,47 +22,35 @@ var (
 	Delete Opt = "del"
 )
 
-func LoginViaSsh(sshAddr, sshUser, sshPassword string, url, user, password string) {
-	sshcon, err := ssh.NewConn(sshAddr, sshUser, sshPassword)
-	if err != nil {
-		return
-	}
-	go func() {
-		for range time.Tick(time.Second * 2) {
-			_, _, err := sshcon.SendRequest("ping", true, nil)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-		}
-	}()
-
-	c := resty.New()
-	t, _ := c.HTTPTransport()
-	t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return sshcon.Dial(network, addr)
-	}
-
-}
-
 func Login(url, user, password string, viaSsh ...string) *client {
 
-	//var sshConn ssh.Client
+	var sshConn *ssh.Client
 	var err error
 	if len(viaSsh) == 3 {
-		sshConn, err := ssh.NewConn(viaSsh[0], viaSsh[1], viaSsh[2])
+		sshConn, err = ssh.NewConn(viaSsh[0], viaSsh[1], viaSsh[2])
 		if err != nil {
 			fmt.Println(err)
 			return nil
 		}
-		fmt.Println(sshConn)
+		go func() {
+			for range time.Tick(time.Second * 2) {
+				_, _, err := sshConn.SendRequest("ping", true, nil)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
 
+			}
+		}()
 	}
 
 	c := resty.New()
-	//t, _ := c.HTTPTransport()
-	//t.DialContext
+	if len(viaSsh) == 3 {
+		t, _ := c.HTTPTransport()
+		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return sshConn.Dial(network, addr)
+		}
+	}
 
 	c.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
 		SetContentLength(true).SetBaseURL(url)
@@ -79,7 +67,12 @@ func Login(url, user, password string, viaSsh ...string) *client {
 	}
 	// reset cookie
 	c = resty.New()
-	//t, _ = c.HTTPTransport()
+	if len(viaSsh) == 3 {
+		t, _ := c.HTTPTransport()
+		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return sshConn.Dial(network, addr)
+		}
+	}
 
 	c.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
 		SetContentLength(true).

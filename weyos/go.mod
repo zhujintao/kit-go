@@ -3,7 +3,7 @@ module github.com/zhujintao/kit-go/weyos
 go 1.24.5
 
 require (
-	github.com/zhujintao/kit-go/ssh v0.0.0-20251016150618-229b253dbaee
+	github.com/zhujintao/kit-go/ssh v0.0.0-20251016153359-f09281e48bed
 	golang.org/x/text v0.30.0
 	resty.dev/v3 v3.0.0-beta.3
 )
