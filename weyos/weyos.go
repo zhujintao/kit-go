@@ -1,34 +1,150 @@
 package weyos
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
+type nat struct {
+	DNats []DNat
+	SNats []SNat
+}
+
+type Entry interface {
+}
+
+// entry use DNat and SNat struct
+func (n *nat) AddEntry(e Entry) {
+
+	if e, ok := e.(DNat); ok {
+		n.DNats = append(n.DNats, e)
+	}
+	if e, ok := e.(SNat); ok {
+		n.SNats = append(n.SNats, e)
+	}
+
+}
+
+func (n *nat) FindSNat(name string) *SNat {
+	for i, e := range n.SNats {
+
+		if e.Name == name {
+			return &n.SNats[i]
+		}
+	}
+	return nil
+}
+
+func (n *nat) FindSNat(name string) *SNat {
+	for i, e := range n.SNats {
+
+		if e.Name == name {
+			return &n.SNats[i]
+		}
+	}
+	return nil
+}
+
+func NewNatRecod() *nat {
+	return &nat{}
+}
+
+func (n *nat) DnatFrom(s string) {
+	UnmarshalDNAT(s, &n.DNats)
+}
+func (n *nat) SnatFrom(s string) {
+	UnmarshalSNAT(s, &n.SNats)
+}
+
+var snatTagField map[string]string = map[string]string{
+	"name":        "name",
+	"enabled":     "en",
+	"src":         "ips",
+	"time_range":  "time",
+	"log_enabled": "log",
+	"priority":    "rpri",
+	"out_if":      "wans",
+	"thd":         "thd_type",
+	//"unknown":     "unknown",
+	"service":  "shibie",
+	"proto":    "ipport",
+	"failover": "no_change",
+}
+var snatFieldPos map[string]int = map[string]int{
+	"name":        0,
+	"enabled":     1,
+	"src":         2,
+	"time_range":  3,
+	"log_enabled": 4,
+	"priority":    5,
+	"out_if":      6,
+	"thd":         7,
+	//"unknown":     8,
+	"service":  9,
+	"proto":    10,
+	"failover": 11,
+}
+
 type SNat struct {
-	Description  string `weyos:"name"`
+	Name         string `weyos:"name"`
 	Status       string `weyos:"enabled"`
 	Priority     string `weyos:"priority"`
-	WanInterface string `weyos:"wan"`
+	WanInterface string `weyos:"out_if"`
 	Protocol     string `weyos:"proto"`
-	LanIps       string `weyos:"lanip_range"`
+	LanIps       string `weyos:"src"`
 	Schedule     string `weyos:"time_range"`
-	Failover     string `weyos:"no_change"`
+	Failover     string `weyos:"failover"`
 	Logging      string `weyos:"log_enabled"`
-	L7Protocol   string `weyos:"l7proto"`
-	Thdtype      string `weyos:"thd_type"`
-	Opt          string `weyos:"opt"`
+	Application  string `weyos:"service"`
+	Thdtype      string `weyos:"thd"`
+}
+
+var dnatFieldPos map[string]int = map[string]int{
+	"enabled":  0,
+	"proto":    1,
+	"src":      2,
+	"dst_port": 3,
+	"to_port":  4,
+	"to_addr":  5,
+	"name":     6,
+	"ext_if":   7,
 }
 
 type DNat struct {
+	Name         string `weyos:"name"`
 	Status       string `weyos:"enabled"`
-	Description  string `weyos:"name"`
 	Protocol     string `weyos:"proto"`
-	AllowedSrcIp string `weyos:"src_ip"`
-	WanPort      string `weyos:"ext_port"`
-	LanPort      string `weyos:"int_port"`
-	LanIp        string `weyos:"int_ip"`
-	WanInterface string `weyos:"wan"`
+	LanPort      string `weyos:"to_port"`
+	LanIp        string `weyos:"to_addr"`
+	WanIps       string `weyos:"src"`
+	WanPort      string `weyos:"dst_port"`
+	WanInterface string `weyos:"ext_if"`
+}
+
+func (s *SNat) Map(gb2312 bool) map[string]string {
+	var m map[string]string = map[string]string{}
+	v := reflect.ValueOf(s).Elem()
+	t := v.Type()
+	for i := range v.NumField() {
+		tag := t.Field(i).Tag.Get("weyos")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		value := v.Field(i)
+		vv := value.String()
+		if gb2312 {
+			vv = StringGB2312(vv)
+		}
+		if name, ok := snatTagField[tag]; ok {
+			m[name] = vv
+		}
+
+	}
+	return m
 }
 
 func UnmarshalDNAT(s string, v any) {
@@ -41,6 +157,10 @@ func UnmarshalSNAT(s string, v any) {
 
 func MarshalDNAT(v any) string {
 	return marshal(v, mkDnat)
+}
+
+func MarshalSNAT(v any) string {
+	return marshal(v, mkSnat)
 }
 
 func marshal(v any, f func(numField int, v reflect.Value, ss *[]string) func(ss []string) string) string {
@@ -56,12 +176,48 @@ func marshal(v any, f func(numField int, v reflect.Value, ss *[]string) func(ss 
 			value := value.Index(i)
 			call = f(value.NumField(), value, &ss)
 		}
+		if len(ss) == 0 {
+			return ""
+		}
 		return call(ss)
 	}
 
 	call = f(value.NumField(), value, &ss)
+	if len(ss) == 0 {
+		return ""
+	}
 	return call(ss)
 
+}
+
+func mkSnat(numField int, v reflect.Value, ss *[]string) func(ss []string) string {
+	var s []string = make([]string, 12)
+	t := v.Type()
+	for i := range numField {
+
+		field := t.Field(i)
+		tag := field.Tag.Get("weyos")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		value := v.Field(i)
+
+		name, ok := snatTagField[tag]
+		if !ok {
+			continue
+		}
+		pos, ok := snatFieldPos[tag]
+		if !ok {
+			continue
+		}
+		s[pos] = name + "=" + value.String()
+
+	}
+	*ss = append(*ss, strings.Join(s, "&"))
+
+	return func(ss []string) string {
+		return strings.Join(ss, " ")
+	}
 }
 
 func mkDnat(numField int, v reflect.Value, ss *[]string) func(ss []string) string {
@@ -71,26 +227,16 @@ func mkDnat(numField int, v reflect.Value, ss *[]string) func(ss []string) strin
 
 		field := t.Field(i)
 		tag := field.Tag.Get("weyos")
+		if tag == "" || tag == "-" {
+			continue
+		}
 		value := v.Field(i)
 
-		switch tag {
-		case "enabled":
-			s[0] = value.String()
-		case "proto":
-			s[1] = value.String()
-		case "src_ip":
-			s[2] = value.String()
-		case "ext_port":
-			s[3] = value.String()
-		case "int_port":
-			s[4] = value.String()
-		case "int_ip":
-			s[5] = value.String()
-		case "name":
-			s[6] = value.String()
-		case "wan":
-			s[7] = value.String()
+		pos, ok := dnatFieldPos[tag]
+		if !ok {
+			continue
 		}
+		s[pos] = value.String()
 
 	}
 	*ss = append(*ss, strings.Join(s, "<"))
@@ -144,32 +290,14 @@ func unmkSnat(s string, numField int, t reflect.Type, v reflect.Value, value *re
 				continue
 			}
 
-			switch tag {
-			case "name":
-				f.SetString(field[0])
-			case "enabled":
-				f.SetString(field[1])
-			case "lanip_range":
-				f.SetString(field[2])
-			case "time_range":
-				f.SetString(field[3])
-			case "log_enabled":
-				f.SetString(field[4])
-			case "priority":
-				f.SetString(field[5])
-			case "wan":
-				f.SetString(field[6])
-			case "thd_type":
-				f.SetString(field[7])
-			case "opt":
-				f.SetString(field[8])
-			case "l7proto":
-				f.SetString(field[9])
-			case "proto":
-				f.SetString(field[10])
-			case "no_change":
-				f.SetString(field[11])
+			if pos, ok := snatFieldPos[tag]; ok {
+				if len(field) < pos {
+					fmt.Println("pos error")
+					return
+				}
+				f.SetString(field[pos])
 			}
+
 		}
 		if value != nil {
 			value.Set(reflect.Append(*value, v))
@@ -195,25 +323,14 @@ func unmkDnat(s string, numField int, t reflect.Type, v reflect.Value, value *re
 				continue
 			}
 
-			switch tag {
-
-			case "enabled":
-				f.SetString(field[0])
-			case "proto":
-				f.SetString(field[1])
-			case "src_ip":
-				f.SetString(field[2])
-			case "ext_port":
-				f.SetString(field[3])
-			case "int_port":
-				f.SetString(field[4])
-			case "int_ip":
-				f.SetString(field[5])
-			case "name":
-				f.SetString(field[6])
-			case "wan":
-				f.SetString(field[7])
+			if pos, ok := dnatFieldPos[tag]; ok {
+				if len(field) < pos {
+					fmt.Println("pos error")
+					return
+				}
+				f.SetString(field[pos])
 			}
+
 		}
 
 		if value != nil {
@@ -222,4 +339,15 @@ func unmkDnat(s string, numField int, t reflect.Type, v reflect.Value, value *re
 
 	}
 
+}
+
+func StringGB2312(s string) string {
+
+	gb2312 := simplifiedchinese.GBK.NewEncoder()
+	sgb, _, err := transform.String(gb2312, s)
+	if err != nil {
+		fmt.Println("GK2312 error", err)
+		return ""
+	}
+	return sgb
 }
