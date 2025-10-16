@@ -32,6 +32,7 @@ func Login(url, user, password string, viaSsh ...string) *client {
 			fmt.Println(err)
 			return nil
 		}
+
 		go func() {
 			for range time.Tick(time.Second * 2) {
 				_, _, err := sshConn.SendRequest("ping", true, nil)
@@ -44,16 +45,13 @@ func Login(url, user, password string, viaSsh ...string) *client {
 		}()
 	}
 
-	c := resty.New()
+	c := resty.New().SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).SetContentLength(true).SetBaseURL(url)
 	if len(viaSsh) == 3 {
 		t, _ := c.HTTPTransport()
 		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return sshConn.Dial(network, addr)
 		}
 	}
-
-	c.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
-		SetContentLength(true).SetBaseURL(url)
 
 	r, err := c.R().SetFormData(map[string]string{"user": user, "password": password}).Post("/login.cgi")
 	if err != nil {
@@ -66,7 +64,7 @@ func Login(url, user, password string, viaSsh ...string) *client {
 
 	}
 	// reset cookie
-	c = resty.New()
+	c = resty.New().SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).SetContentLength(true).SetBaseURL(c.BaseURL())
 	if len(viaSsh) == 3 {
 		t, _ := c.HTTPTransport()
 		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -74,9 +72,6 @@ func Login(url, user, password string, viaSsh ...string) *client {
 		}
 	}
 
-	c.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
-		SetContentLength(true).
-		SetBaseURL(c.BaseURL())
 	cookie := r.Cookies()[0]
 	s := fmt.Sprintf("%s=%s; Path=%s;", cookie.Name, cookie.Value, cookie.Path)
 	c.SetHeader("Cookie", s)
@@ -90,7 +85,9 @@ func (c *client) GetRuleDNat() {
 		Rule string `json:"portforward"`
 	}
 
-	c.R().SetResult(&result).SetForceResponseContentType("application/json;charset=gb2312").Get("/nat_base.data")
+	r, err := c.R().SetResult(&result).SetForceResponseContentType("application/json;charset=gb2312").Get("/nat_base.data")
+	fmt.Println(r, err)
+	fmt.Println(result)
 
 }
 func (c *client) SetRuleDnat() {
