@@ -3,6 +3,7 @@ package weyos
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -10,8 +11,8 @@ import (
 )
 
 type nat struct {
-	DNats []DNat
-	SNats []SNat
+	dNats []DNat
+	sNats []SNat
 }
 
 type Entry interface {
@@ -21,32 +22,93 @@ type Entry interface {
 func (n *nat) AddEntry(e Entry) {
 
 	if e, ok := e.(DNat); ok {
-		n.DNats = append(n.DNats, e)
+		n.dNats = append(n.dNats, e)
 	}
 	if e, ok := e.(SNat); ok {
-		n.SNats = append(n.SNats, e)
+		n.sNats = append(n.sNats, e)
 	}
 
 }
 
 func (n *nat) FindSNat(name string) *SNat {
-	for i, e := range n.SNats {
+	for i, e := range n.sNats {
 
 		if e.Name == name {
-			return &n.SNats[i]
+			return &n.sNats[i]
 		}
 	}
 	return nil
 }
 
-func (n *nat) FindSNat(name string) *SNat {
-	for i, e := range n.SNats {
+func (n *nat) FindDNat(name string) *DNat {
 
-		if e.Name == name {
-			return &n.SNats[i]
-		}
+	i := slices.IndexFunc(n.dNats, func(e DNat) bool {
+		return e.Name == name
+	})
+	if i == -1 {
+		return nil
 	}
-	return nil
+
+	return &n.dNats[i]
+}
+func (n *nat) DelEntry(e Entry) bool {
+
+	var yes bool
+
+	if e, ok := e.(DNat); ok {
+		n.dNats = slices.DeleteFunc(n.dNats, func(ee DNat) bool {
+			if ee.Name == e.Name {
+				yes = true
+				return true
+			}
+
+			if ee.Status == e.Status {
+				yes = true
+				return true
+			}
+
+			return false
+
+		})
+
+	}
+	if e, ok := e.(SNat); ok {
+		n.sNats = slices.DeleteFunc(n.sNats, func(ee SNat) bool {
+			if ee.Name == e.Name {
+				yes = true
+				return true
+			}
+			if ee.Status == e.Status {
+				yes = true
+				return true
+			}
+			return false
+		})
+	}
+
+	return yes
+
+}
+
+func (n *nat) DNatString(gb2312 bool) string {
+	s := MarshalDNAT(n.dNats)
+	if gb2312 {
+		s = StringGB2312(s)
+	}
+	return s
+}
+
+func (n *nat) Entrys(v any) {
+
+	switch ptr := v.(type) {
+
+	case *[]DNat:
+		*ptr = n.dNats
+	case *[]SNat:
+		*ptr = n.sNats
+
+	}
+
 }
 
 func NewNatRecod() *nat {
@@ -54,10 +116,10 @@ func NewNatRecod() *nat {
 }
 
 func (n *nat) DnatFrom(s string) {
-	UnmarshalDNAT(s, &n.DNats)
+	UnmarshalDNAT(s, &n.dNats)
 }
 func (n *nat) SnatFrom(s string) {
-	UnmarshalSNAT(s, &n.SNats)
+	UnmarshalSNAT(s, &n.sNats)
 }
 
 var snatTagField map[string]string = map[string]string{
