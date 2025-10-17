@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/zhujintao/kit-go/ssh"
 	"resty.dev/v3"
@@ -33,16 +32,7 @@ func Login(url, user, password string, viaSsh ...string) *client {
 			return nil
 		}
 
-		go func() {
-			for range time.Tick(time.Second * 2) {
-				_, _, err := sshConn.SendRequest("ping", true, nil)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-			}
-		}()
+		ssh.Ping(context.Background(), sshConn, 2)
 	}
 
 	c := resty.New().SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).SetContentLength(true).SetBaseURL(url)
