@@ -13,7 +13,7 @@ type sshConn struct {
 }
 
 func NewConn(addr string, user, password string) (*sshConn, error) {
-	conn, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{User: user, Auth: []ssh.AuthMethod{ssh.Password(password)}, HostKeyCallback: ssh.InsecureIgnoreHostKey()})
+	conn, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{User: user, Auth: []ssh.AuthMethod{ssh.Password(password)}, HostKeyCallback: ssh.InsecureIgnoreHostKey(), Timeout: time.Second * 2})
 	if err != nil {
 		return nil, err
 	}
@@ -21,6 +21,10 @@ func NewConn(addr string, user, password string) (*sshConn, error) {
 }
 
 func (s *sshConn) SendHello(ctx context.Context) {
+
+	if s == nil {
+		return
+	}
 
 	go func() {
 
