@@ -43,9 +43,25 @@ type detail struct {
 	LocalPort    int     `json:"iport"`
 	OutPort      int     `json:"nport"`
 	Port         int     `json:"port"`
-	OnlineTime   int64   `json:"tm"`
-	Upload       float32 `json:"z0"`
-	Download     float32 `json:"z1"`
+	OnlineTime   float64 `json:"tm"`
+	Upload       float64 `json:"z0"`
+	Download     float64 `json:"z1"`
+	Iface        int     `json:"mid"`
+	Direction    int     `json:"dir"`
+}
+
+func (d *detail) IfaceStr() string {
+	return fmt.Sprintf("WAN%d", d.Iface)
+}
+
+func (d *detail) DirectionStr() string {
+	if d.Direction == 1 {
+		return "in"
+	}
+	if d.Direction == 0 {
+		return "out"
+	}
+	return fmt.Sprintf("%d", d.Direction)
 }
 
 // Add,Modify,Delete
