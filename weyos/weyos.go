@@ -23,23 +23,19 @@ var (
 
 func Login(url, user, password string, viaSsh ...string) *client {
 
-	var sshConn *ssh.Client
-	var err error
-	if len(viaSsh) == 3 {
-		sshConn, err = ssh.NewConn(viaSsh[0], viaSsh[1], viaSsh[2])
-		if err != nil {
-			fmt.Println(err)
-			return nil
-		}
-
-		ssh.Ping(context.Background(), sshConn, 2)
+	sshcli, err := ssh.NewConn(viaSsh[0], viaSsh[1], viaSsh[2])
+	if err != nil {
+		fmt.Println("viaSsh error:", err)
 	}
+	sshcli.SendHello(context.Background())
 
 	c := resty.New().SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).SetContentLength(true).SetBaseURL(url)
-	if len(viaSsh) == 3 {
+
+	if sshcli != nil {
+
 		t, _ := c.HTTPTransport()
 		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return sshConn.Dial(network, addr)
+			return sshcli.Dial(network, addr)
 		}
 	}
 
@@ -55,11 +51,13 @@ func Login(url, user, password string, viaSsh ...string) *client {
 	}
 	// reset cookie
 	c = resty.New().SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).SetContentLength(true).SetBaseURL(c.BaseURL())
-	if len(viaSsh) == 3 {
+	if sshcli != nil {
+
 		t, _ := c.HTTPTransport()
 		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return sshConn.Dial(network, addr)
+			return sshcli.Dial(network, addr)
 		}
+
 	}
 
 	cookie := r.Cookies()[0]

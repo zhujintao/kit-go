@@ -6,6 +6,8 @@ github.com/zhujintao/kit-go/ssh v0.0.0-20251016153359-f09281e48bed h1:Id8wpVOCe4
 github.com/zhujintao/kit-go/ssh v0.0.0-20251016153359-f09281e48bed/go.mod h1:dRRUJ1XoeVu26rWUVkvPRlZpA0D6eL97VgKZpX0B3yc=
 github.com/zhujintao/kit-go/ssh v0.0.0-20251016162418-e8604ba3df72 h1:lH+7GbPGgXm8fHypuNQGgXac2A9i061MVJN4wS14zQM=
 github.com/zhujintao/kit-go/ssh v0.0.0-20251016162418-e8604ba3df72/go.mod h1:dRRUJ1XoeVu26rWUVkvPRlZpA0D6eL97VgKZpX0B3yc=
+github.com/zhujintao/kit-go/ssh v0.0.0-20251017021454-0478664be65f h1:71b0QTppnTwqgglq8qhZNUa5FJLecBN9EZbu/VYg7tQ=
+github.com/zhujintao/kit-go/ssh v0.0.0-20251017021454-0478664be65f/go.mod h1:dRRUJ1XoeVu26rWUVkvPRlZpA0D6eL97VgKZpX0B3yc=
 golang.org/x/crypto v0.43.0 h1:dduJYIi3A3KOfdGOHX8AVZ/jGiyPa3IbBozJ5kNuE04=
 golang.org/x/crypto v0.43.0/go.mod h1:BFbav4mRNlXJL4wNeejLpWxB7wMbc79PdRGhWKncxR0=
 golang.org/x/net v0.45.0 h1:RLBg5JKixCy82FtLJpeNlVM0nrSqpCRYzVU1n8kj0tM=
