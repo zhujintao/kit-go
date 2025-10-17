@@ -98,27 +98,24 @@ func (n *nat) DNatString(gb2312 bool) string {
 	return s
 }
 
-func (n *nat) Entrys(v any) {
+func (n *nat) GetEntrys(v any) {
 
-	switch ptr := v.(type) {
-
-	case *[]DNat:
-		*ptr = n.dNats
-	case *[]SNat:
-		*ptr = n.sNats
-
+	if e, ok := v.(*[]DNat); ok {
+		*e = n.dNats
 	}
-
+	if e, ok := v.(*[]SNat); ok {
+		*e = n.sNats
+	}
 }
 
 func NewNatRecod() *nat {
 	return &nat{}
 }
 
-func (n *nat) DnatFrom(s string) {
+func (n *nat) DNatfrom(s string) {
 	UnmarshalDNAT(s, &n.dNats)
 }
-func (n *nat) SnatFrom(s string) {
+func (n *nat) SNatfrom(s string) {
 	UnmarshalSNAT(s, &n.sNats)
 }
 
