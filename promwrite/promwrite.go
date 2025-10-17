@@ -1,14 +1,17 @@
 package promwrite
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/model/labels"
 	writev2 "github.com/prometheus/prometheus/prompb/io/prometheus/write/v2"
 	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/zhujintao/kit-go/ssh"
 	"resty.dev/v3"
 )
 
@@ -28,12 +31,28 @@ type label struct {
 	samples []writev2.Sample
 }
 
-// v1 /api/v1/write
-func NewMetric(url string, auth ...string) *metric {
+// v1 /api/v1/write, viaSsh via ssh
+func NewMetric(url string, user, password string, viaSsh ...string) *metric {
 
+	var sshaddr, sshuser, sshpasswd string
+	if len(viaSsh) == 3 {
+		sshaddr = viaSsh[0]
+		sshuser = viaSsh[1]
+		sshpasswd = viaSsh[2]
+	}
+	sshcli, err := ssh.NewConn(sshaddr, sshuser, sshpasswd)
+	if err != nil {
+		fmt.Println("skip viaSsh:", err.Error())
+	}
 	cli := resty.New().SetDisableWarn(true)
-	if len(auth) == 2 {
-		cli.SetBasicAuth(auth[0], auth[1])
+	if user != "" && password != "" {
+		cli.SetBasicAuth(user, password)
+	}
+	if sshcli != nil {
+		t, _ := cli.HTTPTransport()
+		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return sshcli.Dial(network, addr)
+		}
 	}
 
 	s := cli.R().
