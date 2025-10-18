@@ -56,10 +56,10 @@ func (d *detail) IfaceStr() string {
 
 func (d *detail) DirectionStr() string {
 	if d.Direction == 1 {
-		return "in"
+		return "<-"
 	}
 	if d.Direction == 0 {
-		return "out"
+		return "->"
 	}
 	return fmt.Sprintf("%d", d.Direction)
 }
