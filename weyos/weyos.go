@@ -51,6 +51,9 @@ type detail struct {
 }
 
 func (d *detail) IfaceStr() string {
+	if d.Iface == 0 {
+		return "LAN"
+	}
 	return fmt.Sprintf("WAN%d", d.Iface)
 }
 
