@@ -1,17 +1,24 @@
 package weyos
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/zhujintao/kit-go/ssh"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"resty.dev/v3"
+)
+
+var (
+	prots map[int]string = map[int]string{}
 )
 
 type client struct {
@@ -38,11 +45,12 @@ type detail struct {
 	RemoteIp     string
 	RemoteIpUint uint32 `json:"fip"`
 	OutIp        string
-	OutIpUint    uint32  `json:"nip"`
-	RemotePort   int     `json:"fport"`
-	LocalPort    int     `json:"iport"`
-	OutPort      int     `json:"nport"`
-	Port         int     `json:"port"`
+	OutIpUint    uint32 `json:"nip"`
+	RemotePort   int    `json:"fport"`
+	LocalPort    int    `json:"iport"`
+	OutPort      int    `json:"nport"`
+	ProtocolInt  int    `json:"prot"`
+	Protocol     string
 	OnlineTime   float64 `json:"tm"`
 	Upload       float64 `json:"z0"`
 	Download     float64 `json:"z1"`
@@ -67,6 +75,15 @@ func (d *detail) DirectionStr() string {
 	return fmt.Sprintf("%d", d.Direction)
 }
 
+func (d *detail) ProtocolStr() string {
+
+	if s, ok := prots[d.ProtocolInt]; ok {
+		return s
+	}
+	return fmt.Sprintf("%d", d.ProtocolInt)
+
+}
+
 // Add,Modify,Delete
 type SNatOptAction string
 type LogCategory string
@@ -82,6 +99,35 @@ var (
 	LogWan  LogCategory = "wan"
 	LogDdos LogCategory = "ddos"
 )
+
+func parserProtocol(t map[int]string) {
+
+	f, err := os.Open("/etc/protocols")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		field := strings.Fields(line)
+		if len(field) < 3 {
+			continue
+		}
+		i, err := strconv.Atoi(field[1])
+		if err != nil {
+			continue
+		}
+		t[i] = field[0]
+
+	}
+
+}
 
 func Login(url, user, password string, viaSsh ...string) (*client, error) {
 
@@ -136,6 +182,7 @@ func Login(url, user, password string, viaSsh ...string) (*client, error) {
 		f(read, v)
 		return nil
 	})
+	parserProtocol(prots)
 	return &client{user: user, http: c, nat: &nat{}}, nil
 
 }
@@ -198,6 +245,7 @@ func (c *client) GetTrafficstats() []*traffic {
 		c.http.R().SetResult(&detail).SetForceResponseContentType("application/json").SetQueryParam("hi", fmt.Sprintf("%d", v.IpUint)).Get("/hictlistxx2.data")
 
 		for _, d := range detail {
+			d.Protocol = d.ProtocolStr()
 			d.RemoteIp = net.IPv4(byte(d.RemoteIpUint>>24), byte(d.RemoteIpUint>>16), byte(d.RemoteIpUint>>8), byte(d.RemoteIpUint)).String()
 			d.OutIp = net.IPv4(byte(d.OutIpUint>>24), byte(d.OutIpUint>>16), byte(d.OutIpUint>>8), byte(d.OutIpUint)).String()
 			v.Detail = append(v.Detail, d)
