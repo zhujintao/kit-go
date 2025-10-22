@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/zhujintao/kit-go/ssh"
+
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"resty.dev/v3"
@@ -25,6 +26,7 @@ type client struct {
 	user string
 	http *resty.Client
 	*nat
+	*arp
 }
 
 type traffic struct {
@@ -85,13 +87,13 @@ func (d *detail) ProtocolStr() string {
 }
 
 // Add,Modify,Delete
-type SNatOptAction string
+type OptAction string
 type LogCategory string
 
 var (
-	OptModify SNatOptAction = "mod"
-	OptAdd    SNatOptAction = "add"
-	OptDelete SNatOptAction = "del"
+	OptModify OptAction = "mod"
+	OptAdd    OptAction = "add"
+	OptDelete OptAction = "del"
 
 	LogNat  LogCategory = "mrzc"
 	LogArp  LogCategory = "arp"
@@ -183,11 +185,12 @@ func Login(url, user, password string, viaSsh ...string) (*client, error) {
 		return nil
 	})
 	parserProtocol(prots)
-	return &client{user: user, http: c, nat: &nat{}}, nil
+	return &client{user: user, http: c, nat: &nat{}, arp: &arp{}}, nil
 
 }
 
 func (c *client) Logout() {
+		
 	c.http.R().SetQueryParam("user", c.user).Get("/logout.asp")
 }
 
@@ -217,7 +220,7 @@ func (c *client) SetRuleDnat() error {
 	return nil
 }
 
-func (c *client) SetRuleSNat(entry *SNat, oldname string, action SNatOptAction) error {
+func (c *client) SetRuleSNat(entry *SNat, oldname string, action OptAction) error {
 
 	switch action {
 	case OptAdd:
@@ -280,15 +283,109 @@ func (c *client) ClearLog(l LogCategory) {
 	c.http.R().SetQueryParam("id", string(l)).Get("/sys_log.asp")
 }
 
-func (c *client) FetchRuleArp() {
+func (c *client) FetchStaticArp() {
 	//var result struct {
 	//}
 
-	//http://192.168.1.1/arp_list.data?_=1760686526181
+	///arp_list.data
 
-	//var static struct {
-	//	Record string `json:"all"`
-	//}
+	var result struct {
+		Record string `json:"all"`
+	}
 	//spr
-	//http://192.168.1.1/arp_static.data
+	///arp_static.data
+
+	r, err := c.http.R().SetResult(&result).SetForceResponseContentType("application/json;charset=gb2312").Get("/arp_static.data")
+	fmt.Println(result, r, err)
+}
+
+func (c *client) FetchListArp() {
+	var result struct {
+		Record []Arp `json:"data"`
+	}
+	c.http.R().SetResult(&result).SetForceResponseContentType("application/json;charset=gb2312").Get("/arp_list.data")
+	c.entrys = result.Record
+
+}
+
+func (c *client) FindMac(s string) {
+
+	var key string
+	if net.ParseIP(s) != nil {
+		key = "ip"
+	} else if _, err := net.ParseMAC(s); err == nil {
+		key = "mac"
+	}
+	if key == "" {
+		fmt.Println(s, " is not valid IP or MAC")
+		return
+	}
+
+	var result struct {
+		IP  string `json:"ip"`
+		Mac string `json:"mac"`
+	}
+
+	c.http.R().SetResult(&result).SetForceResponseContentType("application/json").SetQueryParam(key, s).Get("/find_mac.asp")
+	fmt.Println(result)
+
+}
+
+func (c *client) BindMac(entry *Arp, oldip string, action OptAction) {
+
+	switch action {
+	case OptAdd:
+		c.http.R().SetQueryParams(entry.Map(true)).SetQueryParam("opt", string(action)).Get("/arp_static.asp")
+	case OptModify:
+		c.http.R().SetQueryParams(entry.Map(true)).SetQueryParam("old_ip", oldip).SetQueryParam("opt", string(action)).Get("/arp_static.asp")
+	case OptDelete:
+		c.http.R().SetQueryParams(entry.Map(true)).SetQueryParam("opt", string(action)).Get("/arp_static.asp")
+	}
+	//c.FetchRuleSNat()
+
+	/*
+			n
+		(unable to decode value)
+		i
+		ip
+		m
+			mac
+		t
+		1
+		d
+		lan
+		opt
+		add
+	*/
+	/*
+			n
+		(unable to decode value)
+		i
+		ip
+		m
+		mac
+		t
+		1
+		d
+		lan
+		opt
+		mod
+		old_ip
+		192.168.1.112
+	*/
+	/*
+			n
+		(unable to decode value)
+		i
+		192.168.1.112
+		t
+		1
+		m
+		mac
+		d
+		lan
+		opt
+		del
+	*/
+
 }

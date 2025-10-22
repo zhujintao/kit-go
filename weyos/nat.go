@@ -15,6 +15,7 @@ type nat struct {
 	sNats []SNat
 }
 
+
 type Entry interface {
 }
 
