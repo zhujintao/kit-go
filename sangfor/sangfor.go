@@ -39,6 +39,7 @@ type Bandwidth struct {
 	Down   float64
 	Total  float64
 	App    string
+	Line   int
 	Detail struct {
 		Data []*Bandwidth
 	}
@@ -156,6 +157,6 @@ func (c *client) FetchBandwidth() []*Bandwidth {
 		Success bool
 		Data    []*Bandwidth
 	}
-	c.http.R().SetResult(&result).SetForceResponseContentType("application/json").SetBody(c.buildBody(OprActionList)).Post("/cgi-bin/rtflux.cgi")
+	c.http.R().SetResult(&result).SetForceResponseContentType("application/json").SetBody(c.jsonBody(`{"opr":"list","filter":{"first":1,"time":0,"unit":"bytes"},"cf":"%s"}`)).Post("/cgi-bin/rtflux.cgi")
 	return result.Data
 }

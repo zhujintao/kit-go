@@ -190,7 +190,7 @@ func Login(url, user, password string, viaSsh ...string) (*client, error) {
 }
 
 func (c *client) Logout() {
-		
+
 	c.http.R().SetQueryParam("user", c.user).Get("/logout.asp")
 }
 
