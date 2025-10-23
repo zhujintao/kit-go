@@ -15,7 +15,6 @@ type nat struct {
 	sNats []SNat
 }
 
-
 type Entry interface {
 }
 
@@ -103,10 +102,13 @@ func (n *nat) GetEntrys(v any) {
 
 	if e, ok := v.(*[]DNat); ok {
 		*e = n.dNats
+		return
 	}
 	if e, ok := v.(*[]SNat); ok {
 		*e = n.sNats
+		return
 	}
+	fmt.Println("type error, require []DNat or []SNat")
 }
 
 func NewNatRecod() *nat {

@@ -212,6 +212,9 @@ func (c *client) FetchRuleSNat() error {
 	c.http.R().SetResult(&result).SetForceResponseContentType("application/json;charset=gb2312").Get("/mrprot.data")
 	c.SNatfrom(result.Rule)
 
+	size := len(c.sNats)
+	fmt.Println(size)
+
 	return nil
 }
 func (c *client) SetRuleDnat() error {
