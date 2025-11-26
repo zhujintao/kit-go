@@ -7,7 +7,8 @@ import (
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 )
 
-type Client = *client.Client
+type Client = client.Client
+type Item = client.DescribeInstanceBillResponseBodyDataItems
 type bss struct {
 	*client.Client
 }
@@ -22,7 +23,7 @@ func NewClient(accessKeyId, acessKeySecret string) *bss {
 }
 
 // date in  YYYY-MM , day YYYY-MM-DD
-func (cli *bss) GetBillDaily(day string) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
+func (cli *bss) GetBillDaily(day string) ([]*Item, error) {
 
 	granularity := "DAILY"
 	req := client.DescribeInstanceBillRequest{Granularity: &granularity, BillingDate: &day}
@@ -45,7 +46,7 @@ func (cli *bss) GetBillDaily(day string) ([]*client.DescribeInstanceBillResponse
 }
 
 // date in the YYYY-MM
-func (cli *bss) GetBillMonthiy(date string) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
+func (cli *bss) GetBillMonthiy(date string) ([]*Item, error) {
 
 	granularity := "MONTHLY"
 	req := client.DescribeInstanceBillRequest{Granularity: &granularity, BillingCycle: &date}
@@ -63,7 +64,7 @@ func (cli *bss) GetBillMonthiy(date string) ([]*client.DescribeInstanceBillRespo
 
 }
 
-func (cli *bss) getBill(request client.DescribeInstanceBillRequest) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
+func (cli *bss) getBill(request client.DescribeInstanceBillRequest) ([]*Item, error) {
 
 	isBillingItem := true
 	maxResults := int32(300)
