@@ -110,6 +110,8 @@ func parserProtocol(t map[int]string) {
 	}
 	defer f.Close()
 
+	
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 

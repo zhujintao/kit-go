@@ -124,9 +124,11 @@ func (a *Metric) send(namespace string, valueType prometheus.ValueType, value fl
 	*/
 
 	if a.cacel {
+		a = &Metric{}
 		return
 	}
 
 	a.ch <- prometheus.MustNewConstMetric(desc, valueType, value, labelValue...)
+	a = &Metric{}
 
 }
