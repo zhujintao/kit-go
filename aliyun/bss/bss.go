@@ -22,7 +22,7 @@ func NewClient(accessKeyId, acessKeySecret string) *bss {
 }
 
 // date in  YYYY-MM , day YYYY-MM-DD
-func (cli *bss) GetDailyBill(day string) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
+func (cli *bss) GetBillDaily(day string) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
 
 	granularity := "DAILY"
 	req := client.DescribeInstanceBillRequest{Granularity: &granularity, BillingDate: &day}
@@ -45,7 +45,7 @@ func (cli *bss) GetDailyBill(day string) ([]*client.DescribeInstanceBillResponse
 }
 
 // date in the YYYY-MM
-func (cli *bss) GetMonthiyBill(date string) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
+func (cli *bss) GetBillMonthiy(date string) ([]*client.DescribeInstanceBillResponseBodyDataItems, error) {
 
 	granularity := "MONTHLY"
 	req := client.DescribeInstanceBillRequest{Granularity: &granularity, BillingCycle: &date}
@@ -58,6 +58,7 @@ func (cli *bss) GetMonthiyBill(date string) ([]*client.DescribeInstanceBillRespo
 			req.BillingCycle = &billingCycle
 		}
 	*/
+
 	return cli.getBill(req)
 
 }
