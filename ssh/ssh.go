@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -12,8 +13,17 @@ type sshConn struct {
 	sec time.Duration
 }
 
-func NewConn(addr string, user, password string) (*sshConn, error) {
-	conn, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{User: user, Auth: []ssh.AuthMethod{ssh.Password(password)}, HostKeyCallback: ssh.InsecureIgnoreHostKey(), Timeout: time.Second * 5})
+func NewConn(addr string, user, password string, privatekeyFile ...string) (*sshConn, error) {
+	auth := []ssh.AuthMethod{ssh.Password(password)}
+
+	if len(privatekeyFile) == 1 {
+		key, _ := os.ReadFile(privatekeyFile[0])
+		if signer, err := ssh.ParsePrivateKey(key); err == nil {
+			auth = append(auth, ssh.PublicKeys(signer))
+		}
+
+	}
+	conn, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{User: user, Auth: auth, HostKeyCallback: ssh.InsecureIgnoreHostKey(), Timeout: time.Second * 5})
 	if err != nil {
 		return nil, err
 	}

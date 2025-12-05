@@ -1,4 +1,4 @@
-package weyos
+package v1
 
 import "reflect"
 
