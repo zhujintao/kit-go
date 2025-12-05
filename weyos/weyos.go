@@ -479,9 +479,8 @@ func (cli *client) GetTrafficstats() []traffic {
 			respResult
 			Data []trafficDetail `json:"data"`
 		}
-		_, err := cli.http.R().SetResult(&resultDetail).SetQueryParam("hi", a.Ip).SetForceResponseContentType("application/json;charset=gb2312").Get("hictlistxx2.data")
+		cli.http.R().SetResult(&resultDetail).SetQueryParam("hi", a.Ip).SetForceResponseContentType("application/json;charset=gb2312").Get("hictlistxx2.data")
 		result.Data.All[i].Detail = resultDetail.Data
-		fmt.Println(err)
 
 	}
 
